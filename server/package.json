@@ -1,0 +1,30 @@
+{
+  "name": "godot-mcp-pro-server",
+  "version": "0.1.0",
+  "description": "MCP server bridge for the Godot MCP Pro editor addon.",
+  "type": "module",
+  "bin": {
+    "godot-mcp-pro": "build/index.js",
+    "godot-mcp-pro-cli": "build/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "dev": "tsx src/index.ts",
+    "cli": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.10",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
