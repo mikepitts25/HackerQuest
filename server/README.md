@@ -30,6 +30,30 @@ npm run build
 
 Open the Godot project, enable the Godot MCP Pro plugin, then start the MCP client. The plugin connects to ports `6505-6514`.
 
+## Remote Connector URL
+
+Claude's "Add custom connector" screen needs a public HTTPS URL for a remote MCP server. Start the optional Streamable HTTP transport, then expose it with a tunnel:
+
+```sh
+cd server
+npm run build
+node build/httpServer.js --http-port 3000 --godot-port 6505
+```
+
+The local MCP endpoint is:
+
+```text
+http://127.0.0.1:3000/mcp
+```
+
+For Claude's remote connector field, expose that endpoint with a trusted tunnel and use the public HTTPS URL ending in `/mcp`, for example:
+
+```text
+https://your-tunnel-host.example/mcp
+```
+
+Do not expose this without understanding the risk: these tools can modify your Godot project and control the running editor.
+
 ## Modes
 
 Pass one of these flags in `args` after `build/index.js`:

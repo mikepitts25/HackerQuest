@@ -13,15 +13,7 @@ export interface McpServerOptions {
   host?: string;
 }
 
-export async function runMcpServer(options: McpServerOptions): Promise<void> {
-  const godot = new GodotClient({
-    port: options.port,
-    host: options.host,
-    requestTimeoutMs: Number(process.env.GODOT_MCP_REQUEST_TIMEOUT_MS ?? 120_000),
-    connectionTimeoutMs: Number(process.env.GODOT_MCP_CONNECTION_TIMEOUT_MS ?? 30_000)
-  });
-  await godot.start();
-
+export function createMcpServer(options: { mode: ToolMode; godot: GodotClient }): Server {
   const server = new Server(
     {
       name: "godot-mcp-pro",
@@ -57,7 +49,7 @@ export async function runMcpServer(options: McpServerOptions): Promise<void> {
     }
 
     try {
-      const result = await godot.call(tool.name, toObject(request.params.arguments));
+      const result = await options.godot.call(tool.name, toObject(request.params.arguments));
       return {
         content: [{
           type: "text",
@@ -75,6 +67,20 @@ export async function runMcpServer(options: McpServerOptions): Promise<void> {
       };
     }
   });
+
+  return server;
+}
+
+export async function runMcpServer(options: McpServerOptions): Promise<void> {
+  const godot = new GodotClient({
+    port: options.port,
+    host: options.host,
+    requestTimeoutMs: Number(process.env.GODOT_MCP_REQUEST_TIMEOUT_MS ?? 120_000),
+    connectionTimeoutMs: Number(process.env.GODOT_MCP_CONNECTION_TIMEOUT_MS ?? 30_000)
+  });
+  await godot.start();
+
+  const server = createMcpServer({ mode: options.mode, godot });
 
   process.on("SIGINT", async () => {
     await godot.close();

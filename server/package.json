@@ -5,12 +5,14 @@
   "type": "module",
   "bin": {
     "godot-mcp-pro": "build/index.js",
+    "godot-mcp-pro-http": "build/httpServer.js",
     "godot-mcp-pro-cli": "build/cli.js"
   },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
     "dev": "tsx src/index.ts",
+    "http": "tsx src/httpServer.ts",
     "cli": "tsx src/cli.ts"
   },
   "dependencies": {
@@ -18,6 +20,7 @@
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^24.0.10",
     "@types/ws": "^8.18.1",
     "tsx": "^4.20.3",
