@@ -1,0 +1,152 @@
+[gd_scene load_steps=14 format=3]
+
+[sub_resource type="StandardMaterial3D" id="m_cloak"]
+albedo_color = Color(0.16, 0.07, 0.24, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="m_trim"]
+albedo_color = Color(0.816, 0.435, 1, 1)
+emission_enabled = true
+emission = Color(0.816, 0.435, 1, 1)
+emission_energy_multiplier = 2.0
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="m_dark"]
+albedo_color = Color(0.04, 0.045, 0.06, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="b_cloak"]
+material = SubResource("m_cloak")
+size = Vector3(0.58, 0.92, 0.42)
+
+[sub_resource type="BoxMesh" id="b_sleeve"]
+material = SubResource("m_cloak")
+size = Vector3(0.16, 0.5, 0.16)
+
+[sub_resource type="BoxMesh" id="b_head"]
+material = SubResource("m_dark")
+size = Vector3(0.42, 0.38, 0.38)
+
+[sub_resource type="BoxMesh" id="b_eye"]
+material = SubResource("m_trim")
+size = Vector3(0.07, 0.06, 0.02)
+
+[sub_resource type="BoxMesh" id="b_hoodback"]
+material = SubResource("m_cloak")
+size = Vector3(0.48, 0.46, 0.16)
+
+[sub_resource type="BoxMesh" id="b_hoodtop"]
+material = SubResource("m_cloak")
+size = Vector3(0.48, 0.14, 0.44)
+
+[sub_resource type="BoxMesh" id="b_orb"]
+material = SubResource("m_trim")
+size = Vector3(0.14, 0.14, 0.14)
+
+[sub_resource type="Animation" id="anim_idle"]
+resource_name = "idle"
+length = 3.2
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Cloak:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 1.6, 3.2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0.46, 0), Vector3(0, 0.49, 0), Vector3(0, 0.46, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Cloak/Orb:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.8, 1.6, 2.4, 3.2),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0.08, 0.35), Vector3(0, 0.16, 0.35), Vector3(0, 0.08, 0.35), Vector3(0, 0.16, 0.35), Vector3(0, 0.08, 0.35)]
+}
+
+[sub_resource type="Animation" id="anim_walk"]
+resource_name = "walk"
+length = 0.9
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Cloak:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.225, 0.45, 0.675, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0.46, 0), Vector3(0, 0.49, 0), Vector3(0, 0.46, 0), Vector3(0, 0.49, 0), Vector3(0, 0.46, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Cloak:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.45, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0.04), Vector3(0, 0, -0.04), Vector3(0, 0, 0.04)]
+}
+
+[sub_resource type="AnimationLibrary" id="lib"]
+_data = {
+&"idle": SubResource("anim_idle"),
+&"walk": SubResource("anim_walk")
+}
+
+[node name="CharOracle" type="Node3D"]
+
+[node name="Cloak" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.46, 0)
+mesh = SubResource("b_cloak")
+
+[node name="SleeveL" type="MeshInstance3D" parent="Cloak"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.37, 0.05, 0)
+mesh = SubResource("b_sleeve")
+
+[node name="SleeveR" type="MeshInstance3D" parent="Cloak"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.37, 0.05, 0)
+mesh = SubResource("b_sleeve")
+
+[node name="Orb" type="MeshInstance3D" parent="Cloak"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0.35)
+mesh = SubResource("b_orb")
+
+[node name="Head" type="MeshInstance3D" parent="Cloak"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.66, 0)
+mesh = SubResource("b_head")
+
+[node name="EyeL" type="MeshInstance3D" parent="Cloak/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.08, 0.02, 0.2)
+mesh = SubResource("b_eye")
+
+[node name="EyeR" type="MeshInstance3D" parent="Cloak/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.08, 0.02, 0.2)
+mesh = SubResource("b_eye")
+
+[node name="HoodBack" type="MeshInstance3D" parent="Cloak/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -0.24)
+mesh = SubResource("b_hoodback")
+
+[node name="HoodTop" type="MeshInstance3D" parent="Cloak/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, -0.02)
+mesh = SubResource("b_hoodtop")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("lib")
+}
+autoplay = "idle"

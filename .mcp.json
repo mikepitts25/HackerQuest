@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "godot-mcp-pro": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/Users/mike/AppIdeas/HackerQuest/hacker-quest/server/build/index.js"
+      ],
+      "env": {}
+    }
+  }
+}

@@ -1,0 +1,282 @@
+[gd_scene load_steps=25 format=3]
+
+[sub_resource type="StandardMaterial3D" id="m_skin"]
+albedo_color = Color(0.91, 0.722, 0.541, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="m_hoodie"]
+albedo_color = Color(0.114, 0.361, 0.227, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="m_trim"]
+albedo_color = Color(0.494, 0.906, 0.529, 1)
+emission_enabled = true
+emission = Color(0.494, 0.906, 0.529, 1)
+emission_energy_multiplier = 1.6
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="m_pants"]
+albedo_color = Color(0.125, 0.141, 0.18, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="m_dark"]
+albedo_color = Color(0.067, 0.078, 0.102, 1)
+roughness = 0.85
+
+[sub_resource type="BoxMesh" id="b_leg"]
+material = SubResource("m_pants")
+size = Vector3(0.16, 0.26, 0.16)
+
+[sub_resource type="BoxMesh" id="b_shoe"]
+material = SubResource("m_dark")
+size = Vector3(0.18, 0.1, 0.24)
+
+[sub_resource type="BoxMesh" id="b_body"]
+material = SubResource("m_hoodie")
+size = Vector3(0.52, 0.46, 0.34)
+
+[sub_resource type="BoxMesh" id="b_strip"]
+material = SubResource("m_trim")
+size = Vector3(0.07, 0.38, 0.02)
+
+[sub_resource type="BoxMesh" id="b_pack"]
+material = SubResource("m_pants")
+size = Vector3(0.36, 0.32, 0.16)
+
+[sub_resource type="BoxMesh" id="b_arm"]
+material = SubResource("m_hoodie")
+size = Vector3(0.14, 0.42, 0.14)
+
+[sub_resource type="BoxMesh" id="b_hand"]
+material = SubResource("m_skin")
+size = Vector3(0.13, 0.1, 0.13)
+
+[sub_resource type="BoxMesh" id="b_head"]
+material = SubResource("m_skin")
+size = Vector3(0.46, 0.42, 0.42)
+
+[sub_resource type="BoxMesh" id="b_eye"]
+material = SubResource("m_dark")
+size = Vector3(0.07, 0.1, 0.02)
+
+[sub_resource type="BoxMesh" id="b_cap"]
+material = SubResource("m_dark")
+size = Vector3(0.5, 0.12, 0.46)
+
+[sub_resource type="BoxMesh" id="b_brim"]
+material = SubResource("m_dark")
+size = Vector3(0.42, 0.05, 0.2)
+
+[sub_resource type="BoxMesh" id="b_logo"]
+material = SubResource("m_trim")
+size = Vector3(0.12, 0.06, 0.02)
+
+[sub_resource type="BoxMesh" id="b_beanie"]
+material = SubResource("m_dark")
+size = Vector3(0.5, 0.16, 0.46)
+
+[sub_resource type="BoxMesh" id="b_beaniefold"]
+material = SubResource("m_dark")
+size = Vector3(0.52, 0.07, 0.48)
+
+[sub_resource type="BoxMesh" id="b_crownband"]
+material = SubResource("m_dark")
+size = Vector3(0.48, 0.09, 0.44)
+
+[sub_resource type="BoxMesh" id="b_spike"]
+material = SubResource("m_dark")
+size = Vector3(0.07, 0.12, 0.07)
+
+[sub_resource type="Animation" id="anim_idle"]
+resource_name = "idle"
+length = 2.4
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Body:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 1.2, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0.49, 0), Vector3(0, 0.515, 0), Vector3(0, 0.49, 0)]
+}
+
+[sub_resource type="Animation" id="anim_walk"]
+resource_name = "walk"
+length = 0.6
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Body:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.15, 0.3, 0.45, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0.49, 0), Vector3(0, 0.525, 0), Vector3(0, 0.49, 0), Vector3(0, 0.525, 0), Vector3(0, 0.49, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("LegL:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.3, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(0.5, 0, 0), Vector3(-0.5, 0, 0), Vector3(0.5, 0, 0)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("LegR:rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.3, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.5, 0, 0), Vector3(0.5, 0, 0), Vector3(-0.5, 0, 0)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Body/ArmL:rotation")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.3, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.4, 0, 0), Vector3(0.4, 0, 0), Vector3(-0.4, 0, 0)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Body/ArmR:rotation")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.3, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(0.4, 0, 0), Vector3(-0.4, 0, 0), Vector3(0.4, 0, 0)]
+}
+
+[sub_resource type="AnimationLibrary" id="lib"]
+_data = {
+&"idle": SubResource("anim_idle"),
+&"walk": SubResource("anim_walk")
+}
+
+[node name="CharPlayer" type="Node3D"]
+
+[node name="LegL" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.12, 0.13, 0)
+mesh = SubResource("b_leg")
+
+[node name="ShoeL" type="MeshInstance3D" parent="LegL"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0.03)
+mesh = SubResource("b_shoe")
+
+[node name="LegR" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.13, 0)
+mesh = SubResource("b_leg")
+
+[node name="ShoeR" type="MeshInstance3D" parent="LegR"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0.03)
+mesh = SubResource("b_shoe")
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.49, 0)
+mesh = SubResource("b_body")
+
+[node name="ZipStrip" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.18)
+mesh = SubResource("b_strip")
+
+[node name="Backpack" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, -0.25)
+mesh = SubResource("b_pack")
+
+[node name="ArmL" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.33, 0.02, 0)
+mesh = SubResource("b_arm")
+
+[node name="HandL" type="MeshInstance3D" parent="Body/ArmL"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.23, 0)
+mesh = SubResource("b_hand")
+
+[node name="ArmR" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.33, 0.02, 0)
+mesh = SubResource("b_arm")
+
+[node name="HandR" type="MeshInstance3D" parent="Body/ArmR"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.23, 0)
+mesh = SubResource("b_hand")
+
+[node name="Head" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.44, 0)
+mesh = SubResource("b_head")
+
+[node name="EyeL" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.1, 0.03, 0.215)
+mesh = SubResource("b_eye")
+
+[node name="EyeR" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, 0.03, 0.215)
+mesh = SubResource("b_eye")
+
+[node name="Cap" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.26, 0)
+mesh = SubResource("b_cap")
+
+[node name="CapBrim" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.23, 0.3)
+mesh = SubResource("b_brim")
+
+[node name="CapLogo" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.26, 0.24)
+mesh = SubResource("b_logo")
+
+[node name="Beanie" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+visible = false
+mesh = SubResource("b_beanie")
+
+[node name="BeanieFold" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, 0)
+visible = false
+mesh = SubResource("b_beaniefold")
+
+[node name="CrownBand" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.26, 0)
+visible = false
+mesh = SubResource("b_crownband")
+
+[node name="CrownSpikeL" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.15, 0.34, 0)
+visible = false
+mesh = SubResource("b_spike")
+
+[node name="CrownSpikeM" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.34, 0)
+visible = false
+mesh = SubResource("b_spike")
+
+[node name="CrownSpikeR" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 0.34, 0)
+visible = false
+mesh = SubResource("b_spike")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("lib")
+}
+autoplay = "idle"

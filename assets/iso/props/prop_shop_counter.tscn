@@ -1,0 +1,81 @@
+[gd_scene load_steps=12 format=3]
+
+[sub_resource type="StandardMaterial3D" id="m_base"]
+albedo_color = Color(0.137, 0.153, 0.2, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="m_top"]
+albedo_color = Color(0.2, 0.22, 0.29, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="m_neon"]
+albedo_color = Color(1, 0.243, 0.784, 1)
+emission_enabled = true
+emission = Color(1, 0.243, 0.784, 1)
+emission_energy_multiplier = 2.2
+
+[sub_resource type="StandardMaterial3D" id="m_canopy"]
+albedo_color = Color(0.18, 0.35, 0.42, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="b_base"]
+material = SubResource("m_base")
+size = Vector3(1.6, 0.5, 0.55)
+
+[sub_resource type="BoxMesh" id="b_top"]
+material = SubResource("m_top")
+size = Vector3(1.72, 0.06, 0.66)
+
+[sub_resource type="BoxMesh" id="b_strip"]
+material = SubResource("m_neon")
+size = Vector3(1.6, 0.05, 0.02)
+
+[sub_resource type="BoxMesh" id="b_pole"]
+material = SubResource("m_base")
+size = Vector3(0.06, 1.35, 0.06)
+
+[sub_resource type="BoxMesh" id="b_canopy"]
+material = SubResource("m_canopy")
+size = Vector3(1.8, 0.06, 0.8)
+
+[sub_resource type="BoxMesh" id="b_canopystrip"]
+material = SubResource("m_neon")
+size = Vector3(1.8, 0.04, 0.02)
+
+[sub_resource type="BoxMesh" id="b_cashbox"]
+material = SubResource("m_base")
+size = Vector3(0.25, 0.18, 0.2)
+
+[node name="PropShopCounter" type="Node3D"]
+
+[node name="Base" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+mesh = SubResource("b_base")
+
+[node name="Top" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.53, 0)
+mesh = SubResource("b_top")
+
+[node name="NeonStrip" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0.285)
+mesh = SubResource("b_strip")
+
+[node name="PoleL" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.78, 0.675, -0.2)
+mesh = SubResource("b_pole")
+
+[node name="PoleR" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.78, 0.675, -0.2)
+mesh = SubResource("b_pole")
+
+[node name="Canopy" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.38, -0.05)
+mesh = SubResource("b_canopy")
+
+[node name="CanopyStrip" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.36, 0.36)
+mesh = SubResource("b_canopystrip")
+
+[node name="CashBox" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.65, 0)
+mesh = SubResource("b_cashbox")

@@ -1,0 +1,81 @@
+[gd_scene load_steps=10 format=3]
+
+[sub_resource type="StandardMaterial3D" id="m_bld"]
+albedo_color = Color(0.094, 0.106, 0.145, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="m_win"]
+albedo_color = Color(0.478, 0.875, 1, 1)
+emission_enabled = true
+emission = Color(0.478, 0.875, 1, 1)
+emission_energy_multiplier = 1.4
+
+[sub_resource type="StandardMaterial3D" id="m_win2"]
+albedo_color = Color(1, 0.243, 0.784, 1)
+emission_enabled = true
+emission = Color(1, 0.243, 0.784, 1)
+emission_energy_multiplier = 1.4
+
+[sub_resource type="StandardMaterial3D" id="m_roofedge"]
+albedo_color = Color(0.698, 0.467, 0.878, 1)
+emission_enabled = true
+emission = Color(0.698, 0.467, 0.878, 1)
+emission_energy_multiplier = 1.6
+
+[sub_resource type="BoxMesh" id="b_body"]
+material = SubResource("m_bld")
+size = Vector3(2.4, 4, 2.4)
+
+[sub_resource type="BoxMesh" id="b_win"]
+material = SubResource("m_win")
+size = Vector3(0.16, 3.2, 0.04)
+
+[sub_resource type="BoxMesh" id="b_roofstrip"]
+material = SubResource("m_roofedge")
+size = Vector3(2.44, 0.06, 0.06)
+
+[sub_resource type="BoxMesh" id="b_roofbox"]
+material = SubResource("m_bld")
+size = Vector3(0.8, 0.4, 0.8)
+
+[sub_resource type="BoxMesh" id="b_winside"]
+material = SubResource("m_win2")
+size = Vector3(0.04, 3.2, 0.16)
+
+[node name="BldgTower" type="Node3D"]
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+mesh = SubResource("b_body")
+
+[node name="Win1" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7, 1.9, 1.22)
+mesh = SubResource("b_win")
+
+[node name="Win2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.9, 1.22)
+mesh = SubResource("b_win")
+
+[node name="Win3" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7, 1.9, 1.22)
+mesh = SubResource("b_win")
+
+[node name="WinSide1" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.22, 1.9, -0.6)
+mesh = SubResource("b_winside")
+
+[node name="WinSide2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.22, 1.9, 0.6)
+mesh = SubResource("b_winside")
+
+[node name="RoofStripFront" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.03, 1.19)
+mesh = SubResource("b_roofstrip")
+
+[node name="RoofStripSide" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 1.19, 4.03, 0)
+mesh = SubResource("b_roofstrip")
+
+[node name="RoofBox" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 4.2, -0.5)
+mesh = SubResource("b_roofbox")

@@ -1,0 +1,76 @@
+[gd_scene load_steps=9 format=3]
+
+[sub_resource type="StandardMaterial3D" id="m_frame"]
+albedo_color = Color(0.137, 0.153, 0.2, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="m_paper"]
+albedo_color = Color(0.8, 0.82, 0.86, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="m_neon_c"]
+albedo_color = Color(0.478, 0.875, 1, 1)
+emission_enabled = true
+emission = Color(0.478, 0.875, 1, 1)
+emission_energy_multiplier = 1.8
+
+[sub_resource type="StandardMaterial3D" id="m_neon_g"]
+albedo_color = Color(0.494, 0.906, 0.529, 1)
+emission_enabled = true
+emission = Color(0.494, 0.906, 0.529, 1)
+emission_energy_multiplier = 1.8
+
+[sub_resource type="BoxMesh" id="b_post"]
+material = SubResource("m_frame")
+size = Vector3(0.08, 1.15, 0.08)
+
+[sub_resource type="BoxMesh" id="b_board"]
+material = SubResource("m_frame")
+size = Vector3(1.4, 0.75, 0.06)
+
+[sub_resource type="BoxMesh" id="b_header"]
+material = SubResource("m_neon_c")
+size = Vector3(1.4, 0.1, 0.03)
+
+[sub_resource type="BoxMesh" id="b_note"]
+material = SubResource("m_paper")
+size = Vector3(0.18, 0.22, 0.015)
+
+[node name="PropJobBoard" type="Node3D"]
+
+[node name="PostL" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 0.575, 0)
+mesh = SubResource("b_post")
+
+[node name="PostR" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 0.575, 0)
+mesh = SubResource("b_post")
+
+[node name="Board" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+mesh = SubResource("b_board")
+
+[node name="Header" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.38, 0.02)
+mesh = SubResource("b_header")
+
+[node name="Note1" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.45, 1.05, 0.04)
+mesh = SubResource("b_note")
+
+[node name="Note2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.15, 0.92, 0.04)
+mesh = SubResource("b_note")
+
+[node name="Note3" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.18, 1.08, 0.04)
+mesh = SubResource("b_note")
+
+[node name="Note4" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, 0.88, 0.04)
+mesh = SubResource("b_note")
+
+[node name="NoteNew" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.78, 0.04)
+mesh = SubResource("b_note")
+material_override = SubResource("m_neon_g")

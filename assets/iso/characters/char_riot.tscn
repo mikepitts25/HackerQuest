@@ -1,0 +1,223 @@
+[gd_scene load_steps=19 format=3]
+
+[sub_resource type="StandardMaterial3D" id="m_jacket"]
+albedo_color = Color(0.11, 0.31, 0.263, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="m_trim"]
+albedo_color = Color(0.227, 0.651, 0.541, 1)
+emission_enabled = true
+emission = Color(0.227, 0.651, 0.541, 1)
+emission_energy_multiplier = 1.8
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="m_skin"]
+albedo_color = Color(0.941, 0.784, 0.627, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="m_hair"]
+albedo_color = Color(1, 0.31, 0.604, 1)
+emission_enabled = true
+emission = Color(1, 0.31, 0.604, 1)
+emission_energy_multiplier = 0.8
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="m_pants"]
+albedo_color = Color(0.106, 0.118, 0.157, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="m_dark"]
+albedo_color = Color(0.067, 0.078, 0.102, 1)
+roughness = 0.85
+
+[sub_resource type="BoxMesh" id="b_leg"]
+material = SubResource("m_pants")
+size = Vector3(0.16, 0.26, 0.16)
+
+[sub_resource type="BoxMesh" id="b_shoe"]
+material = SubResource("m_dark")
+size = Vector3(0.18, 0.1, 0.24)
+
+[sub_resource type="BoxMesh" id="b_body"]
+material = SubResource("m_jacket")
+size = Vector3(0.5, 0.44, 0.32)
+
+[sub_resource type="BoxMesh" id="b_strip"]
+material = SubResource("m_trim")
+size = Vector3(0.05, 0.4, 0.02)
+
+[sub_resource type="BoxMesh" id="b_arm"]
+material = SubResource("m_jacket")
+size = Vector3(0.14, 0.42, 0.14)
+
+[sub_resource type="BoxMesh" id="b_hand"]
+material = SubResource("m_skin")
+size = Vector3(0.13, 0.1, 0.13)
+
+[sub_resource type="BoxMesh" id="b_head"]
+material = SubResource("m_skin")
+size = Vector3(0.44, 0.4, 0.4)
+
+[sub_resource type="BoxMesh" id="b_eye"]
+material = SubResource("m_dark")
+size = Vector3(0.07, 0.1, 0.02)
+
+[sub_resource type="BoxMesh" id="b_mohawk"]
+material = SubResource("m_hair")
+size = Vector3(0.1, 0.26, 0.42)
+
+[sub_resource type="Animation" id="anim_idle"]
+resource_name = "idle"
+length = 2.4
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Body:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 1.2, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0.48, 0), Vector3(0, 0.505, 0), Vector3(0, 0.48, 0)]
+}
+
+[sub_resource type="Animation" id="anim_walk"]
+resource_name = "walk"
+length = 0.6
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Body:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.15, 0.3, 0.45, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0.48, 0), Vector3(0, 0.515, 0), Vector3(0, 0.48, 0), Vector3(0, 0.515, 0), Vector3(0, 0.48, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("LegL:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.3, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(0.5, 0, 0), Vector3(-0.5, 0, 0), Vector3(0.5, 0, 0)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("LegR:rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.3, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.5, 0, 0), Vector3(0.5, 0, 0), Vector3(-0.5, 0, 0)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Body/ArmL:rotation")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.3, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.4, 0, 0), Vector3(0.4, 0, 0), Vector3(-0.4, 0, 0)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Body/ArmR:rotation")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.3, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(0.4, 0, 0), Vector3(-0.4, 0, 0), Vector3(0.4, 0, 0)]
+}
+
+[sub_resource type="AnimationLibrary" id="lib"]
+_data = {
+&"idle": SubResource("anim_idle"),
+&"walk": SubResource("anim_walk")
+}
+
+[node name="CharRiot" type="Node3D"]
+
+[node name="LegL" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.12, 0.13, 0)
+mesh = SubResource("b_leg")
+
+[node name="ShoeL" type="MeshInstance3D" parent="LegL"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0.03)
+mesh = SubResource("b_shoe")
+
+[node name="LegR" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.13, 0)
+mesh = SubResource("b_leg")
+
+[node name="ShoeR" type="MeshInstance3D" parent="LegR"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0.03)
+mesh = SubResource("b_shoe")
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.48, 0)
+mesh = SubResource("b_body")
+
+[node name="StripL" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.13, 0, 0.17)
+mesh = SubResource("b_strip")
+
+[node name="StripR" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.13, 0, 0.17)
+mesh = SubResource("b_strip")
+
+[node name="ArmL" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.32, 0.02, 0)
+mesh = SubResource("b_arm")
+
+[node name="HandL" type="MeshInstance3D" parent="Body/ArmL"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.23, 0)
+mesh = SubResource("b_hand")
+
+[node name="ArmR" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.32, 0.02, 0)
+mesh = SubResource("b_arm")
+
+[node name="HandR" type="MeshInstance3D" parent="Body/ArmR"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.23, 0)
+mesh = SubResource("b_hand")
+
+[node name="Head" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.43, 0)
+mesh = SubResource("b_head")
+
+[node name="EyeL" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.1, 0.03, 0.21)
+mesh = SubResource("b_eye")
+
+[node name="EyeR" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, 0.03, 0.21)
+mesh = SubResource("b_eye")
+
+[node name="Mohawk" type="MeshInstance3D" parent="Body/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.31, 0)
+mesh = SubResource("b_mohawk")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("lib")
+}
+autoplay = "idle"

@@ -1,0 +1,59 @@
+[gd_scene load_steps=10 format=3]
+
+[sub_resource type="StandardMaterial3D" id="m_frame"]
+albedo_color = Color(0.137, 0.153, 0.2, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="m_mattress"]
+albedo_color = Color(0.23, 0.25, 0.31, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="m_pillow"]
+albedo_color = Color(0.8, 0.83, 0.88, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="m_blanket"]
+albedo_color = Color(0.114, 0.361, 0.227, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="b_frame"]
+material = SubResource("m_frame")
+size = Vector3(0.9, 0.18, 1.8)
+
+[sub_resource type="BoxMesh" id="b_headboard"]
+material = SubResource("m_frame")
+size = Vector3(0.9, 0.5, 0.08)
+
+[sub_resource type="BoxMesh" id="b_mattress"]
+material = SubResource("m_mattress")
+size = Vector3(0.82, 0.14, 1.66)
+
+[sub_resource type="BoxMesh" id="b_pillow"]
+material = SubResource("m_pillow")
+size = Vector3(0.6, 0.1, 0.34)
+
+[sub_resource type="BoxMesh" id="b_blanket"]
+material = SubResource("m_blanket")
+size = Vector3(0.84, 0.05, 0.95)
+
+[node name="PropBed" type="Node3D"]
+
+[node name="Frame" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.09, 0)
+mesh = SubResource("b_frame")
+
+[node name="Headboard" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, -0.86)
+mesh = SubResource("b_headboard")
+
+[node name="Mattress" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+mesh = SubResource("b_mattress")
+
+[node name="Pillow" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.37, -0.6)
+mesh = SubResource("b_pillow")
+
+[node name="Blanket" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.345, 0.35)
+mesh = SubResource("b_blanket")

@@ -1,0 +1,70 @@
+[gd_scene load_steps=10 format=3]
+
+[sub_resource type="StandardMaterial3D" id="m_trash"]
+albedo_color = Color(0.137, 0.153, 0.2, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="m_trash2"]
+albedo_color = Color(0.18, 0.2, 0.26, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="m_scrap"]
+albedo_color = Color(0.494, 0.906, 0.529, 1)
+emission_enabled = true
+emission = Color(0.494, 0.906, 0.529, 1)
+emission_energy_multiplier = 1.2
+
+[sub_resource type="BoxMesh" id="b_box1"]
+material = SubResource("m_trash")
+size = Vector3(0.45, 0.32, 0.4)
+
+[sub_resource type="BoxMesh" id="b_box2"]
+material = SubResource("m_trash2")
+size = Vector3(0.3, 0.24, 0.3)
+
+[sub_resource type="BoxMesh" id="b_box3"]
+material = SubResource("m_trash")
+size = Vector3(0.25, 0.4, 0.25)
+
+[sub_resource type="BoxMesh" id="b_scrap"]
+material = SubResource("m_scrap")
+size = Vector3(0.1, 0.04, 0.1)
+
+[sub_resource type="BoxMesh" id="b_flat1"]
+material = SubResource("m_trash")
+size = Vector3(0.5, 0.12, 0.45)
+
+[sub_resource type="BoxMesh" id="b_flat2"]
+material = SubResource("m_trash2")
+size = Vector3(0.3, 0.08, 0.3)
+
+[node name="PropTrashPile" type="Node3D"]
+
+[node name="Full" type="Node3D" parent="."]
+
+[node name="Box1" type="MeshInstance3D" parent="Full"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
+mesh = SubResource("b_box1")
+
+[node name="Box2" type="MeshInstance3D" parent="Full"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.12, 0.15)
+mesh = SubResource("b_box2")
+
+[node name="Box3" type="MeshInstance3D" parent="Full"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.28, 0.2, -0.1)
+mesh = SubResource("b_box3")
+
+[node name="Scrap" type="MeshInstance3D" parent="Full"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.34, 0.05)
+mesh = SubResource("b_scrap")
+
+[node name="Searched" type="Node3D" parent="."]
+visible = false
+
+[node name="Flat1" type="MeshInstance3D" parent="Searched"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, 0)
+mesh = SubResource("b_flat1")
+
+[node name="Flat2" type="MeshInstance3D" parent="Searched"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0.04, 0.12)
+mesh = SubResource("b_flat2")

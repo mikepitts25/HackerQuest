@@ -1,0 +1,175 @@
+[gd_scene load_steps=19 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/iso/characters/char_player.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://assets/iso/characters/char_vex.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://assets/iso/characters/char_riot.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://assets/iso/props/prop_server_rack.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://assets/iso/props/prop_neon_sign.tscn" id="5"]
+
+[sub_resource type="Environment" id="env"]
+background_mode = 1
+background_color = Color(0.043, 0.051, 0.078, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.31, 0.34, 0.47, 1)
+ambient_light_energy = 1.5
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.7
+glow_bloom = 0.1
+
+[sub_resource type="StandardMaterial3D" id="m_ground"]
+albedo_color = Color(0.078, 0.086, 0.118, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="m_tile"]
+albedo_color = Color(0.106, 0.122, 0.169, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="m_bld"]
+albedo_color = Color(0.094, 0.106, 0.145, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="m_win"]
+albedo_color = Color(0.478, 0.875, 1, 1)
+emission_enabled = true
+emission = Color(0.478, 0.875, 1, 1)
+emission_energy_multiplier = 1.4
+
+[sub_resource type="StandardMaterial3D" id="m_trash"]
+albedo_color = Color(0.137, 0.153, 0.2, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="b_ground"]
+material = SubResource("m_ground")
+size = Vector3(10, 0.12, 10)
+
+[sub_resource type="BoxMesh" id="b_tile"]
+material = SubResource("m_tile")
+size = Vector3(1.5, 0.04, 1.5)
+
+[sub_resource type="BoxMesh" id="b_bldA"]
+material = SubResource("m_bld")
+size = Vector3(2.4, 3, 2.4)
+
+[sub_resource type="BoxMesh" id="b_bldB"]
+material = SubResource("m_bld")
+size = Vector3(2, 2.2, 2)
+
+[sub_resource type="BoxMesh" id="b_win"]
+material = SubResource("m_win")
+size = Vector3(0.16, 2.4, 0.04)
+
+[sub_resource type="BoxMesh" id="b_trash1"]
+material = SubResource("m_trash")
+size = Vector3(0.4, 0.3, 0.35)
+
+[sub_resource type="BoxMesh" id="b_trash2"]
+material = SubResource("m_trash")
+size = Vector3(0.3, 0.22, 0.3)
+
+[node name="IsoStyleframe" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("env")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.8192, 0.4056, -0.4056, 0, 0.7071, 0.7071, 0.5736, -0.5793, 0.5793, 0, 8, 0)
+light_color = Color(0.85, 0.88, 1, 1)
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="FillLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 3, 2.5)
+light_color = Color(0.75, 0.8, 1, 1)
+light_energy = 1.4
+omni_range = 9.0
+
+[node name="NeonMagenta" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6, 1.8, -1.4)
+light_color = Color(1, 0.3, 0.78, 1)
+light_energy = 2.5
+omni_range = 6.0
+
+[node name="NeonCyan" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.4, 1.6, -1)
+light_color = Color(0.35, 0.85, 1, 1)
+light_energy = 1.8
+omni_range = 6.0
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 8.57, 7.5, 8.57)
+projection = 1
+size = 6.5
+keep_aspect = 0
+current = true
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.06, 0)
+mesh = SubResource("b_ground")
+
+[node name="Tile1" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("b_tile")
+
+[node name="Tile2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0, -1.5)
+mesh = SubResource("b_tile")
+
+[node name="Tile3" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0, 1.5)
+mesh = SubResource("b_tile")
+
+[node name="Tile4" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, 0)
+mesh = SubResource("b_tile")
+
+[node name="Tile5" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 0)
+mesh = SubResource("b_tile")
+
+[node name="Tile6" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
+mesh = SubResource("b_tile")
+
+[node name="BuildingA" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.8, 1.44, -2.8)
+mesh = SubResource("b_bldA")
+
+[node name="WindowA1" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.4, 1.5, -1.57)
+mesh = SubResource("b_win")
+
+[node name="WindowA2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.8, 1.5, -1.57)
+mesh = SubResource("b_win")
+
+[node name="WindowA3" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 1.5, -1.57)
+mesh = SubResource("b_win")
+
+[node name="BuildingB" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.9, 1.04, -2.9)
+mesh = SubResource("b_bldB")
+
+[node name="NeonSign" parent="." instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.9, 1.6, -1.83)
+
+[node name="ServerRack" parent="." instance=ExtResource("4")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3, 0, -1.8)
+
+[node name="Trash1" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4, 0.15, -1)
+mesh = SubResource("b_trash1")
+
+[node name="Trash2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, 0.11, -0.7)
+mesh = SubResource("b_trash2")
+
+[node name="Player" parent="." instance=ExtResource("1")]
+transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 0.2, 0, 0.9)
+
+[node name="Vex" parent="." instance=ExtResource("2")]
+transform = Transform3D(0.573576, 0, 0.819152, 0, 1, 0, -0.819152, 0, 0.573576, -1.7, 0, 0.1)
+
+[node name="Riot" parent="." instance=ExtResource("3")]
+transform = Transform3D(0.984808, 0, 0.173648, 0, 1, 0, -0.173648, 0, 0.984808, 1.9, 0, -0.3)
