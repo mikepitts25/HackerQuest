@@ -360,6 +360,65 @@ const CONSUMABLES := {
 		"desc": "+4 CPU right now. Needs a computer to matter.",
 		"price": 28, "energy": 0, "cpu": 4, "wired": 0,
 	},
+	# Combat programs (G6) — PROGRAM action in a fight. No out-of-combat effect
+	# (energy/cpu/wired all 0); GameState.use_consumable refuses them outside a
+	# fight so they aren't wasted. The `combat` block is read by the combat UI.
+	"logic_bomb": {
+		"name": "Logic Bomb",
+		"desc": "Combat: a burst payload — 14 damage that ignores their firewall.",
+		"price": 70, "energy": 0, "cpu": 0, "wired": 0,
+		"combat": {"damage": 14},
+	},
+	"patch_kit": {
+		"name": "Patch Kit",
+		"desc": "Combat: hotfix your deck mid-fight for +20 integrity.",
+		"price": 55, "energy": 0, "cpu": 0, "wired": 0,
+		"combat": {"heal": 20},
+	},
+	"proxy_smoke": {
+		"name": "Proxy Smoke",
+		"desc": "Combat: bounce your signal — your next JACK OUT can't fail.",
+		"price": 40, "energy": 0, "cpu": 0, "wired": 0,
+		"combat": {"flee_bonus": 1.0},
+	},
+}
+
+# Turn-based combat opponents (G6). Same four stats as the player
+# (attack/defense/integrity/crit) so the math is symmetric. `moveset` is the
+# pool the dumb AI picks from each turn; enemy-only moves are `ddos` (heavy hit)
+# and `trace_lock` (chip damage + makes the next JACK OUT harder). `loot` pays
+# out on a win. `flee: false` forbids JACK OUT (bosses, trace units). `tier`
+# gates which enemies appear in random street encounters.
+const ENEMIES := {
+	"script_kid": {
+		"name": "Script Kiddie", "integrity": 18, "attack": 3, "defense": 1, "crit": 0.0,
+		"moveset": ["exploit", "exploit", "firewall"],
+		"loot": {"cash": [20, 45], "xp": 15, "rep": 1},
+		"flee": true, "tier": 0,
+		"intro": "Some kid in a hoodie squares up, cracking their knuckles.",
+		"taunts": ["u even got a 0day, bro?", "ez.", "skill issue lol"]},
+	"street_hacker": {
+		"name": "Corner Cracker", "integrity": 34, "attack": 6, "defense": 4, "crit": 0.05,
+		"moveset": ["exploit", "exploit", "ddos", "firewall"],
+		"loot": {"cash": [60, 120], "xp": 35, "rep": 2},
+		"flee": true, "tier": 1,
+		"intro": "A wiry runner steps from a doorway, deck already humming.",
+		"taunts": ["wrong corner, friend.", "pay the toll.", "nothing personal."]},
+	"tracker_unit": {
+		"name": "Trace Unit", "integrity": 42, "attack": 7, "defense": 6, "crit": 0.05,
+		"moveset": ["exploit", "trace_lock", "exploit", "firewall"],
+		"loot": {"cash": [0, 0], "xp": 45, "rep": 0, "heat_clear": true},
+		"flee": false, "tier": 2,
+		"intro": "The trace resolves into a corp enforcer. No more running.",
+		"taunts": ["located.", "hold still.", "resistance logged."]},
+	"r10t": {
+		"name": "R10T", "integrity": 70, "attack": 10, "defense": 6, "crit": 0.12,
+		"moveset": ["exploit", "exploit", "ddos", "firewall", "exploit"],
+		"loot": {"cash": [300, 500], "xp": 120, "rep": 8, "gear": "rig_breaker"},
+		"flee": false, "boss": true, "tier": 3,
+		"intro": "R10T's avatar flickers in — your old rival, grinning.",
+		"taunts": ["thought you were better than me?", "still running scripts?",
+			"i taught you everything. badly."]},
 }
 
 # Status ranks earned by Reputation. Ordered low → high; your rank is the

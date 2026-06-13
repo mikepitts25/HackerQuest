@@ -462,6 +462,49 @@ func _ready() -> void:
 	_check(rider.get("_board") != null, "hoverboarder spawns with a glowing deck")
 	rider.queue_free()
 
+	# --- combat core (G6) ---
+	var CombatSession := load("res://scripts/combat/combat_session.gd")
+	# Overwhelming player one-shots a weak enemy → WIN.
+	var cs1 = CombatSession.new()
+	cs1.init({"attack": 100, "defense": 5, "integrity": 50, "crit": 0.0, "stealth": 0}, "script_kid", 1)
+	cs1.player_exploit()
+	_check(cs1.outcome == cs1.WIN, "combat: strong player wins")
+	# Hopeless player vs the boss → LOSE within a bounded number of turns.
+	var cs2 = CombatSession.new()
+	cs2.init({"attack": 0, "defense": 0, "integrity": 6, "crit": 0.0, "stealth": 0}, "r10t", 1)
+	var cguard := 0
+	while cs2.outcome == cs2.ONGOING and cguard < 60:
+		cs2.player_firewall()
+		cguard += 1
+	_check(cs2.outcome == cs2.LOSE, "combat: hopeless player loses")
+	# Bosses / trace units can't be fled.
+	var cs3 = CombatSession.new()
+	cs3.init({"attack": 1, "defense": 99, "integrity": 200, "crit": 0.0, "stealth": 9}, "tracker_unit", 1)
+	cs3.player_jack_out()
+	_check(cs3.outcome != cs3.FLED, "combat: trace unit can't be fled")
+	# A flee-able enemy with a smoke + stealth escapes (loop beats the 5% miss).
+	var fled := 0
+	for i in 20:
+		var cs = CombatSession.new()
+		cs.init({"attack": 1, "defense": 99, "integrity": 200, "crit": 0.0, "stealth": 5}, "script_kid", -1)
+		cs.player_program({"flee_bonus": 1.0}, "Proxy Smoke")
+		if cs.outcome == cs.ONGOING:
+			cs.player_jack_out()
+		if cs.outcome == cs.FLED:
+			fled += 1
+	_check(fled > 0, "combat: JACK OUT can succeed when flee-able")
+	# Combat items surface as PROGRAM options and are guarded outside fights.
+	GameState.new_game()
+	GameState.add_item("logic_bomb")
+	var has_bomb := false
+	for p in CombatSession.available_programs(GameState.inventory):
+		if p.id == "logic_bomb":
+			has_bomb = true
+	_check(has_bomb, "combat: owned combat items appear as PROGRAM options")
+	var bomb_count: int = GameState.inventory.get("logic_bomb", 0)
+	_check(not GameState.use_consumable("logic_bomb"), "combat item can't be used outside a fight")
+	_check(GameState.inventory.get("logic_bomb", 0) == bomb_count, "refused combat item is not consumed")
+
 	if _failures.is_empty():
 		print("SMOKE TEST PASSED")
 	else:

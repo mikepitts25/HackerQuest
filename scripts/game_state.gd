@@ -678,6 +678,18 @@ func total_crit() -> float:
 	return gear_stat("implant", "crit")
 
 
+# The player's combat loadout, snapshotted for a CombatSession (G6). Reads the
+# same derived stats hacking uses; stealth feeds the JACK OUT (flee) odds.
+func combat_stats() -> Dictionary:
+	return {
+		"attack": total_cyber_attack(),
+		"defense": total_defense(),
+		"integrity": total_integrity(),
+		"crit": total_crit(),
+		"stealth": skill("stealth"),
+	}
+
+
 # A sharper RIG nudges your exploit odds (capped), tying gear into hacking.
 func gear_hack_bonus() -> float:
 	return minf(0.2, total_cyber_attack() * 0.01)
@@ -1125,6 +1137,10 @@ func use_consumable(id: String) -> bool:
 	if inventory.get(id, 0) <= 0 or not is_consumable(id):
 		return false
 	var c: Dictionary = GameData.CONSUMABLES[id]
+	# Combat programs only matter in a fight — don't let them be wasted here.
+	if c.has("combat") and c.energy == 0 and c.cpu == 0 and c.wired == 0:
+		notify("Save it for a fight — use it from the PROGRAM menu.", COL_WARN)
+		return false
 	if c.cpu > 0 and not has_computer:
 		notify("You need a computer for that.", COL_WARN)
 		return false
