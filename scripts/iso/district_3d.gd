@@ -14,6 +14,7 @@ const PX := 1.0 / 80.0  # meters per legacy 2D pixel
 
 const InteractableScript := preload("res://scripts/iso/interactable_3d.gd")
 const WandererScript := preload("res://scripts/iso/wanderer_3d.gd")
+const VehicleScript := preload("res://scripts/iso/vehicle_3d.gd")
 
 const CHAR_SCENES := {
 	"pix": "res://assets/iso/characters/char_pix.tscn",
@@ -48,6 +49,11 @@ var _buildings: Array = []       # {node, tall} — for botnet LEDs
 # strangers stay on the street where they belong.
 var wander_zone := Rect2()
 
+# Ambient traffic lanes (G7). Each entry: {path: PackedVector2Array (a closed
+# loop of XZ waypoints in meters), count: int, speed: float, color: Color}.
+# Populate in _build(), or call _ring_road() for a one-liner perimeter loop.
+var traffic_lanes: Array = []
+
 
 func build(p_main: Node) -> void:
 	main = p_main
@@ -56,6 +62,8 @@ func build(p_main: Node) -> void:
 	_add_police_presence()
 	_add_botnet_glow()
 	_spawn_crowd(_crowd_size())
+	_spawn_hoverboarders(_hoverboarder_count())
+	_spawn_traffic()
 
 
 # Override in subclasses. Set area_size, then lay out the district.
@@ -270,8 +278,10 @@ func _spawn_wanderers(district_id: String) -> void:
 
 
 # Crowd size scales with district area so the bigger districts feel busier.
+# Density bumped in G7 (street life) — the enlarged districts read fuller now;
+# sweeps/night still thin the streets via the skip rolls below.
 func _crowd_size() -> int:
-	return int(area_size.x * area_size.y / 45.0)
+	return int(area_size.x * area_size.y / 36.0)
 
 
 # Anonymous pedestrians (G3) — regular people who fill the streets, roam, and
@@ -315,6 +325,85 @@ func _tint_body(ch: Node3D, color: Color) -> void:
 	mat.albedo_color = color.darkened(0.35)
 	mesh.material = mat
 	body.mesh = mesh
+
+
+# --- street life (G7) ---------------------------------------------------------
+
+# A few hoverboarders only in the roomier districts — they read as distinct
+# fast-movers, so a couple per big district is plenty.
+func _hoverboarder_count() -> int:
+	return mini(3, int(area_size.x * area_size.y / 120.0))
+
+
+# Citizens zipping by on boards — reuses the wanderer brain at high speed with
+# a glowing deck under their feet (see wanderer_3d.rider). Thinned by sweeps
+# like the rest of the crowd. Skips the apartment (tiny wander_zone districts).
+func _spawn_hoverboarders(n: int) -> void:
+	if n <= 0:
+		return
+	var margin := 1.0
+	var zone := wander_zone
+	if zone.size == Vector2.ZERO:
+		zone = Rect2(margin, margin, area_size.x - margin * 2.0, area_size.y - margin * 2.0)
+	if zone.size.x < 4.0 or zone.size.y < 4.0:
+		return  # too cramped to be worth a board (e.g. the apartment street)
+	var sweeps := GameState.heat_penalty() > 0.0
+	for i in n:
+		if sweeps and randf() < 0.6:
+			continue  # boarders clear out fastest when the drones are up
+		var ch: Node3D = load(CITIZEN_SCENE).instantiate()
+		ch.set_script(WandererScript)
+		ch.area_center = Vector3(zone.get_center().x, 0, zone.get_center().y)
+		ch.area_size = zone.size
+		ch.speed = randf_range(2.2, 3.0)
+		ch.rider = true
+		ch.position = Vector3(
+			randf_range(zone.position.x, zone.end.x), 0,
+			randf_range(zone.position.y, zone.end.y))
+		add_child(ch)
+		_tint_body(ch, Color(GameData.CITIZEN_TINTS.pick_random()))
+		var nm: String = GameData.CITIZEN_NAMES.pick_random()
+		_interact(ch, "Greet %s" % nm, Vector3(0.6, 1.3, 0.6),
+				func() -> void: main.talk_wanderer(nm))
+
+
+# Spawns the cars defined in `traffic_lanes`, evenly spaced along each loop.
+func _spawn_traffic() -> void:
+	for lane in traffic_lanes:
+		var path: PackedVector2Array = lane.path
+		if path.size() < 2:
+			continue
+		var count: int = lane.get("count", 2)
+		var speed: float = lane.get("speed", 3.0)
+		var color: Color = lane.get("color", Color(0.5, 0.55, 0.62))
+		var loop_len := _path_length(path)
+		for i in count:
+			var v := Node3D.new()
+			v.set_script(VehicleScript)
+			add_child(v)
+			v.setup(path, speed, color)
+			if count > 0:
+				v.skip_ahead(loop_len * float(i) / float(count))
+
+
+# Convenience: a rectangular traffic loop offset from the district bounds.
+# `inset` < 0 puts the ring just OUTSIDE the walls (a skirting ring road that
+# never crosses pedestrians); > 0 routes it inside. One call adds traffic to a
+# district. Travels clockwise from the top-left.
+func _ring_road(inset := -0.9, count := 3, speed := 3.0, color := Color(0.45, 0.5, 0.6)) -> void:
+	var lo := Vector2(inset, inset)
+	var hi := Vector2(area_size.x - inset, area_size.y - inset)
+	var loop := PackedVector2Array([
+		Vector2(lo.x, lo.y), Vector2(hi.x, lo.y),
+		Vector2(hi.x, hi.y), Vector2(lo.x, hi.y)])
+	traffic_lanes.append({"path": loop, "count": count, "speed": speed, "color": color})
+
+
+func _path_length(path: PackedVector2Array) -> float:
+	var total := 0.0
+	for i in path.size():
+		total += path[i].distance_to(path[(i + 1) % path.size()])
+	return total
 
 
 # A scavengable e-waste pile. Dim state derives from GameState so it stays

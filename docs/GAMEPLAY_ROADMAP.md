@@ -183,18 +183,30 @@ The headline new system — RPG/Pokémon-style fights.
 - This is the biggest lift: a battle state machine + UI + balancing.
   Effort: ~1–2 weeks. Build after G4 (needs the stat layer).
 
-## G7 — Street life: traffic & crowds (slot anywhere)
+## G7 — Street life: traffic & crowds (SHIPPED)
 
-Ambient motion that makes the bigger districts feel inhabited.
+Ambient motion that makes the bigger districts feel inhabited. All three
+sub-systems landed and were verified live in the plaza (denser crowd +
+two hoverboarders gliding on green decks + cars ringing the district).
 
-- **Cars**: blocky vehicles that drive lane paths through a district and loop
-  at the edges. Lanes are data per district (a few points); a simple
-  path-follower mover. Pure flavor, no collision with gameplay.
-- **Hoverboarders**: citizen variants that zip by faster than walkers (reuse
-  the board mesh + wanderer brain at high speed).
-- **Denser crowds**: bump ambient wanderer counts in the enlarged districts;
-  thin them under sweeps/night (already wired).
-- Effort: ~2–3 days. Can land opportunistically alongside other phases.
+- [x] **Cars** (`scripts/iso/vehicle_3d.gd`): a code-built blocky vehicle
+  (body + cabin + emissive headlights) that follows a lane — a polyline of
+  XZ waypoints — and loops at the end. Pure flavor, no collision. Districts
+  add traffic via `district_3d._ring_road()` (a perimeter loop just outside
+  the walls, so cars skirt the play area like a road) or by populating
+  `traffic_lanes` directly. Cars stagger along the loop via `skip_ahead()`.
+  Plaza (4 civic), Market (4 vans), Corp Row (3 sleek sedans), Darknet (2
+  seedy) all have traffic now, each tinted to its district.
+- [x] **Hoverboarders**: `wanderer_3d.rider` mode — reuses the wanderer brain
+  at high speed (2.2–3.0) with a glowing deck under the feet, glide (legs
+  still) instead of walking, banking into turns, and barely any idling.
+  `district_3d._spawn_hoverboarders()` drops a couple in the roomier
+  districts (none in the apartment); thinned hardest by sweeps.
+- [x] **Denser crowds**: `_crowd_size()` density bumped (area/45 → area/36);
+  sweeps/night thinning still applies via the existing skip rolls.
+- Smoke coverage added (path-follower lap + wrap, `skip_ahead` staggering,
+  rider deck build).
+- Effort: ~2–3 days. Landed opportunistically after G5.
 
 ---
 
@@ -216,6 +228,6 @@ furniture, Style score, trophy shelf. Full spec in `ALIVE_ROADMAP.md` Phase 5.
 ## Suggested build order
 
 G1 (economy) → G2 (creation) → G3 (NPCs/quests) → G4 (gear) → G5 (police
-trace) → G6 (combat) → G7 (street life, or slot earlier) → teaser districts →
-apartments. G7 and individual G3 NPCs can be pulled forward as palette
-cleansers between the heavier systems.
+trace) → ~~G7 (street life)~~ SHIPPED → **G6 (combat — next)** → teaser
+districts → apartments. G6 is the remaining headline system; the G1 balance
+pass and G3 branching side-quests are open tails that can slot in anytime.

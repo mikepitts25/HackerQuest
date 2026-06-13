@@ -133,8 +133,10 @@ chase and fight you, gear with stats, way more to do. Build order:
       district shakes it, while timeout applies the existing bust penalty.
 - [ ] **G6 — combat**: infrequent turn-based hacker battles (R10T boss,
       street enemies), Pokémon/RPG style, stats from gear+skills. The big one.
-- [ ] **G7 — street life**: cars on lane paths, citizens on hoverboards,
-      denser crowds. Ambient; can slot earlier.
+- [x] **G7 — street life** SHIPPED: cars ring the big districts on lane paths
+      (`vehicle_3d.gd` + `district_3d._ring_road`), citizens zip by on glowing
+      hoverboards (`wanderer_3d.rider`), and crowds are denser. Verified live
+      in the plaza. Sweeps/night still thin the streets.
 - [ ] **(LATER) teaser districts** — Old Exchange, Neon Strip, Signal Yards,
       Rooftops, The Stacks (already on the map as "???").
 - [ ] **(LAST) apartments v2** — classes per district, functional + cosmetic

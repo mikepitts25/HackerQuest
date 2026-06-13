@@ -431,6 +431,37 @@ func _ready() -> void:
 	_check(not GameState.has_save(), "new_game deletes save file")
 	_check(GameState.cash == 15 and GameState.is_new_game, "new_game resets defaults")
 
+	# --- street life: ambient traffic path-follower (G7) ---
+	var VehicleScript := load("res://scripts/iso/vehicle_3d.gd")
+	var loop := PackedVector2Array([
+		Vector2(0, 0), Vector2(10, 0), Vector2(10, 10), Vector2(0, 10)])
+	var car: Node3D = Node3D.new()
+	car.set_script(VehicleScript)
+	add_child(car)
+	car.setup(loop, 5.0, Color(0.5, 0.5, 0.6))
+	var car_start := car.position
+	for i in 30:
+		car._process(0.1)  # ~3m/frame * 30 ≈ a full lap, exercising the wrap
+	_check(car.position.distance_to(car_start) >= 0.0 and is_finite(car.position.x)
+			and is_finite(car.position.z), "traffic car drives its lane and stays finite")
+	# A second car skipped halfway round the loop must start elsewhere.
+	var car2: Node3D = Node3D.new()
+	car2.set_script(VehicleScript)
+	add_child(car2)
+	car2.setup(loop, 5.0, Color(0.5, 0.5, 0.6))
+	car2.skip_ahead(20.0)  # half of the 40m perimeter
+	_check(car2.position.distance_to(Vector3(0, 0, 0)) > 1.0, "skip_ahead staggers cars along the loop")
+	car.queue_free()
+	car2.queue_free()
+
+	# A hoverboarder builds its deck on spawn (rider mode).
+	var rider: Node3D = load("res://assets/iso/characters/char_citizen.tscn").instantiate()
+	rider.set_script(load("res://scripts/iso/wanderer_3d.gd"))
+	rider.rider = true
+	add_child(rider)  # _ready() runs here and builds the board
+	_check(rider.get("_board") != null, "hoverboarder spawns with a glowing deck")
+	rider.queue_free()
+
 	if _failures.is_empty():
 		print("SMOKE TEST PASSED")
 	else:
