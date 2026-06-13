@@ -163,6 +163,27 @@ func _ready() -> void:
 		_check(GameState.get("trace_active") == false, "load clears transient trace")
 		_check(GameState.heat == GameState.trace_escape_heat(), "load normalizes saved trace heat")
 
+	var has_failed_hack_api := GameState.has_method("apply_failed_hack_heat") \
+			and GameState.has_method("high_risk_hack_heat_threshold")
+	_check(has_failed_hack_api, "failed hack heat API exists")
+	if has_failed_hack_api:
+		GameState.reputation = 0
+		GameState.upgrades.erase("vpn")
+		GameState.skills["stealth"] = 0
+		GameState.heat = 0
+		GameState._reset_trace()
+		var low_fail_heat: int = GameState.apply_failed_hack_heat(10)
+		_check(low_fail_heat == 5, "low-risk failed hack applies half heat")
+		_check(GameState.heat == 5, "low-risk failed hack changes heat by half")
+		_check(GameState.get("trace_active") == false, "low-risk failed hack does not force trace")
+
+		GameState.heat = 0
+		GameState._reset_trace()
+		var high_fail_heat: int = GameState.apply_failed_hack_heat(GameState.high_risk_hack_heat_threshold())
+		_check(high_fail_heat == 100, "high-risk failed hack maxes heat")
+		_check(GameState.get("trace_active") == true, "high-risk failed hack starts trace")
+		GameState.escape_trace()
+
 	# --- status (reputation ranks + rewards) ---
 	GameState.reputation = 0
 	GameState.status_seen = 0

@@ -24,6 +24,7 @@ const SAVE_PATH := "user://save.json"
 const SAVE_VERSION := 1
 const TRACE_BASE_SECONDS := 30.0
 const TRACE_ESCAPE_HEAT := 75
+const HIGH_RISK_HACK_HEAT := 20
 
 # Fields written to / read from the save file. Listed once so save and load
 # can't drift apart. Dictionaries/arrays of plain data round-trip through JSON;
@@ -459,6 +460,10 @@ func trace_escape_heat() -> int:
 	return TRACE_ESCAPE_HEAT
 
 
+func high_risk_hack_heat_threshold() -> int:
+	return HIGH_RISK_HACK_HEAT
+
+
 func start_trace(reason: String, seconds := TRACE_BASE_SECONDS) -> void:
 	if trace_active:
 		return
@@ -474,6 +479,16 @@ func force_trace(reason: String) -> void:
 	heat = 100
 	stats_changed.emit()
 	start_trace(reason)
+
+
+func apply_failed_hack_heat(base_heat: int) -> int:
+	if base_heat >= high_risk_hack_heat_threshold():
+		force_trace("high_risk_fail")
+		return heat
+	var before := heat
+	var fail_heat := ceili(base_heat / 2.0)
+	add_heat(fail_heat)
+	return heat - before
 
 
 func tick_trace(delta: float) -> void:
