@@ -30,6 +30,7 @@ var _bag_modal := {}
 var _wifi_modal := {}
 var _apt_modal := {}
 var _furnish_modal := {}
+var _laptop_nudged := false  # one-time "you can afford the laptop" toast
 var _contracts_modal := {}
 var _map_modal := {}
 var _phone_modal := {}
@@ -483,10 +484,12 @@ func _make_modal(title: String) -> Dictionary:
 	var center := MarginContainer.new()
 	center.add_theme_constant_override("margin_left", 24)
 	center.add_theme_constant_override("margin_right", 24)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE  # taps fall through to the dim
 	root.add_child(center)
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	var holder := CenterContainer.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	center.add_child(holder)
 
 	var inner := PanelContainer.new()
@@ -523,6 +526,12 @@ func _make_modal(title: String) -> Dictionary:
 	vbox.add_child(rows)
 
 	var modal := {"root": root, "title": title_label, "rows": rows}
+
+	# Tapping the dimmed area outside the panel closes the modal — a reliable
+	# escape on touch so a modal can never strand the player.
+	root.gui_input.connect(func(ev: InputEvent) -> void:
+		if ev is InputEventMouseButton and ev.pressed:
+			_close_modal(modal))
 
 	var close := Button.new()
 	close.text = "CLOSE"
@@ -588,6 +597,14 @@ func _any_modal_open() -> bool:
 func _open_modal(modal: Dictionary) -> void:
 	if modal.root.visible:
 		return
+	# Don't stack a modal on a dialog (that double-locked the UI) — let the
+	# player finish reading it first.
+	if _dialog_panel.visible:
+		return
+	# If something non-HUD owns the screen (combat / terminal / shop), don't
+	# open over it either — that's how the player got soft-locked.
+	if GameState.is_ui_locked() and not _any_modal_open():
+		return
 	var was_open := _any_modal_open()
 	# Only ever one modal at a time.
 	for m in _modals:
@@ -612,15 +629,21 @@ func _close_modal(modal: Dictionary) -> void:
 
 
 func close_blocking_ui() -> void:
-	if _dialog_panel.visible:
-		if _type_tween and _type_tween.is_valid():
-			_type_tween.kill()
-		_dialog_panel.visible = false
-		_dialog_queue.clear()
-		GameState.unlock_ui()
+	_dismiss_dialog()
 	for m in _modals:
 		if not m.is_empty() and m.root.visible:
 			_close_modal(m)
+
+
+# Dismiss the dialog box and release its UI lock, if one is showing.
+func _dismiss_dialog() -> void:
+	if not _dialog_panel.visible:
+		return
+	if _type_tween and _type_tween.is_valid():
+		_type_tween.kill()
+	_dialog_panel.visible = false
+	_dialog_queue.clear()
+	GameState.unlock_ui()
 
 
 func _clear_rows(modal: Dictionary) -> void:
@@ -900,6 +923,11 @@ func _do_job(id: String) -> void:
 	var pay := int(round(job.cash * GameState.hustle_mult()
 			* GameState.daily_mult(bkind) * GameState.mastery_mult(bkind)))
 	var heat: int = job.get("heat", 0)
+	# Jobs are your lifeline before the laptop — they pay real XP then. Once you
+	# own a rig, hacking is the XP engine and gigs become cash grunt work, so the
+	# board can't be farmed for endless levels.
+	var xp_clean := 8 if not GameState.has_computer else 2
+	var xp_side := 4 if not GameState.has_computer else 1
 	GameState.add_mastery("corp_row" if bkind == "jobs_corp" else "plaza")
 	# The bet resolves: a clean run pays out, a blown one pays scraps and
 	# spikes your heat.
@@ -907,18 +935,30 @@ func _do_job(id: String) -> void:
 		var salvage := int(pay * 0.25)
 		GameState.add_cash(salvage)
 		GameState.add_heat(int(heat * 1.5) + 5)
-		GameState.add_xp(4)
+		GameState.add_xp(xp_side)
 		GameState.notify("Job went sideways! Salvaged +$%d — and you're hot now." % salvage, GameState.COL_BAD)
 	else:
 		GameState.add_cash(pay)
-		GameState.add_xp(8)
+		GameState.add_xp(xp_clean)
 		if heat > 0:
 			GameState.add_heat(heat)
-		GameState.notify("+$%d, +8 XP — %s done clean" % [pay, job.name], GameState.COL_GOOD)
+		GameState.notify("+$%d, +%d XP — %s done clean" % [pay, xp_clean, job.name], GameState.COL_GOOD)
 		if randf() < job.rep_chance:
 			GameState.add_rep(1)
 			GameState.notify("+1 REP — word gets around", GameState.COL_INFO)
+	_maybe_nudge_laptop()
 	_refresh_jobs()
+
+
+# One-time nudge when you first scrape together enough for the used laptop —
+# makes hitting that first $100 milestone feel like the goal it is.
+func _maybe_nudge_laptop() -> void:
+	if GameState.has_computer or _laptop_nudged:
+		return
+	var price: int = GameData.UPGRADES["used_laptop"]["price"]
+	if GameState.cash >= price:
+		_laptop_nudged = true
+		GameState.notify("That's enough for the used laptop — grab it at the PAWN SHOP.", GameState.COL_GOOD)
 
 
 # --- Skills ------------------------------------------------------------------------

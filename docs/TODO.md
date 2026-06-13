@@ -72,9 +72,17 @@ networks**, **Darknet contracts**, **Corp Row gig board**, **apartments**,
       WIFI moved to a vertical action rail on the right edge. Also fixed a
       latent anchor bug — the stats panel was shrink-wrapping instead of
       spanning the screen (masked before by wide content).
-- [ ] **Modal CLOSE buttons** — automated taps sometimes hit a hidden modal's
-      button; real play is fine, but consider hiding off-screen instead of just
-      `visible=false`, or disabling buttons of inactive modals.
+- [x] **Modal soft-lock fixed** — opening a HUD modal over a dialog (which the
+      morning daily-mod dialog made common) double-locked the UI and could
+      strand the player. Now `_open_modal` refuses to open over a dialog or a
+      non-HUD screen (combat/terminal/shop), and **tapping the dimmed area
+      closes any modal** — a reliable touch escape. (Automated test taps can
+      still hit a hidden modal's off-screen button; that's a harness quirk, not
+      a play issue.)
+- [x] **Jobs aren't an endless XP faucet** — gigs pay full XP only before you
+      own the laptop (your early lifeline); once you have a rig, hacking is the
+      XP engine and gigs drop to token XP (cash grunt work). A one-time toast
+      nudges you to the PAWN SHOP the moment you can afford the laptop.
 - [ ] **Walking onto exits/NPCs** needs precise positioning at high zoom. Consider
       auto-travel when standing in a doorway for a beat, or bigger exit hitboxes.
 - [ ] **Balance pass** on the full curve (early scavenging → endgame ai_datacenter).
