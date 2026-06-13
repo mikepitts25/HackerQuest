@@ -154,6 +154,29 @@ func _ready() -> void:
 		_check(GameState.heat == GameState.trace_escape_heat(), "escape lowers heat to escape target")
 
 		GameState.heat = 0
+		GameState.force_trace("smoke_sleep")
+		day_before = GameState.day
+		GameState.sleep()
+		_check(GameState.get("trace_active") == true, "trace-active sleep stays traced")
+		_check(GameState.heat == 100, "trace-active sleep keeps heat maxed")
+		_check(GameState.day == day_before, "trace-active sleep does not advance day")
+		GameState._reset_trace()
+		GameState.heat = 0
+
+		GameState.heat = 0
+		GameState.cash = 500
+		GameState.fixer_used = false
+		GameState.force_trace("smoke_fixer")
+		cash_before = GameState.cash
+		var trace_fixer := GameState.bribe_fixer()
+		_check(not trace_fixer.ok, "trace-active fixer refuses scrub")
+		_check(GameState.get("trace_active") == true, "trace-active fixer stays traced")
+		_check(GameState.heat == 100, "trace-active fixer keeps heat maxed")
+		_check(GameState.cash == cash_before, "trace-active fixer does not spend cash")
+		GameState._reset_trace()
+		GameState.heat = 0
+
+		GameState.heat = 0
 		GameState.add_heat(500)
 		_check(GameState.get("trace_active") == true, "trace active before save")
 		GameState.save_game()

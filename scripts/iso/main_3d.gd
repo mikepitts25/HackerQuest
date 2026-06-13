@@ -94,6 +94,8 @@ func go_to(district_id: String, spawn_id: String) -> void:
 		GameState.notify("That district is locked.", GameState.COL_WARN)
 		return
 	var escaped_trace := GameState.trace_active and current_district_id != "" and district_id != current_district_id
+	if escaped_trace:
+		GameState.escape_trace()
 	for child in world_container.get_children():
 		world_container.remove_child(child)
 		child.queue_free()
@@ -106,8 +108,6 @@ func go_to(district_id: String, spawn_id: String) -> void:
 	player.global_position = district.spawn_point(spawn_id)
 	player.reset_proximity()
 	GameState.touch_vector = Vector2.ZERO
-	if escaped_trace:
-		GameState.escape_trace()
 
 
 func do_sleep() -> void:

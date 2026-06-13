@@ -941,6 +941,9 @@ func fence_stolen_data() -> Dictionary:
 # Marlowe scrubs Heat once per day for a fee that scales with how hot you are.
 # Returns {ok, reason, cost, before, after}.
 func bribe_fixer() -> Dictionary:
+	if trace_active:
+		notify("TRACE ACTIVE — leave the district before scrubbing Heat.", COL_BAD)
+		return {"ok": false, "reason": "trace"}
 	if fixer_used:
 		return {"ok": false, "reason": "used"}
 	if heat <= 0:
@@ -1354,6 +1357,9 @@ func buy_upgrade(id: String) -> bool:
 
 
 func sleep() -> void:
+	if trace_active:
+		notify("TRACE ACTIVE — leave the district before you sleep.", COL_BAD)
+		return
 	day += 1
 	var income := botnet_size * 2
 	if owned("desk_setup"):
