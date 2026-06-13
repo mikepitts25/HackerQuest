@@ -522,6 +522,28 @@ func escape_trace() -> bool:
 	return true
 
 
+# You stood and beat the trace unit in combat (G6). The trace ends cleanly —
+# heat is zeroed by the fight's loot (heat_clear), so don't touch it here.
+func defeat_trace() -> void:
+	if not trace_active:
+		return
+	trace_active = false
+	trace_seconds_left = 0.0
+	trace_reason = ""
+	stats_changed.emit()
+	notify("Trace unit down — you're off the grid.", COL_GOOD)
+	trace_cleared.emit(true)
+	save_game()
+
+
+# You lost the fight to the trace unit — same outcome as letting it complete.
+func lose_trace_fight() -> void:
+	if not trace_active:
+		return
+	trace_cleared.emit(false)
+	_bust()  # also resets the trace state
+
+
 func _reset_trace() -> void:
 	trace_active = false
 	trace_seconds_left = 0.0

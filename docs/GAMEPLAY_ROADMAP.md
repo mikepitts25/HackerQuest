@@ -183,9 +183,11 @@ Shipped across four phases (see `docs/G6_COMBAT_SCOPE.md`):
 - Balance verified by headless Monte Carlo: trash mobs are quick wins for the
   right tier, R10T is skill-gated (brawling loses, smart play ~80%), and
   fleeing always escapes a flee-able enemy. Smoke covers the engine + gating.
-
-Open follow-up: fight-the-tracker during a G5 trace (the `tracker_unit` enemy
-and its `heat_clear` loot exist; just needs the in-world hook).
+- **Fight-the-tracker** (G5↔G6 tie): during a trace, the converging trace units
+  are tappable — stand and fight one instead of running. Win and the trace ends
+  with heat cleared; lose and they bust you (same penalty as the timeout). The
+  countdown pauses during the fight, and cop pressure clears when the trace
+  resolves.
 
 ### Original design notes
 
@@ -253,6 +255,5 @@ furniture, Style score, trophy shelf. Full spec in `ALIVE_ROADMAP.md` Phase 5.
 
 G1 (economy) → G2 (creation) → G3 (NPCs/quests) → G4 (gear) → G5 (police
 trace) → ~~G7 (street life)~~ SHIPPED → ~~G6 (combat)~~ SHIPPED → **teaser
-districts → apartments (the deferred tail)**. The G1 balance pass, G3 branching
-side-quests, and fight-the-tracker (G5↔G6 tie) are open tails that can slot in
-anytime.
+districts → apartments (the deferred tail)**. The G1 balance pass and G3
+branching side-quests are open tails that can slot in anytime.

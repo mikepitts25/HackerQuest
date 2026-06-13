@@ -535,6 +535,19 @@ func _ready() -> void:
 	_check(GameState.r10t_beaten, "r10t_beaten persists across save/load")
 	GameState.new_game()
 
+	# --- fight-the-tracker trace resolution (G6 follow-up) ---
+	GameState.start_trace("test")
+	_check(GameState.trace_active, "trace starts active")
+	GameState.defeat_trace()
+	_check(not GameState.trace_active, "winning the trace fight ends the trace")
+	GameState.new_game()
+	GameState.cash = 100
+	GameState.start_trace("test")
+	GameState.lose_trace_fight()
+	_check(not GameState.trace_active, "losing the trace fight ends the trace")
+	_check(GameState.cash == 50, "losing the trace fight busts (half cash)")
+	GameState.new_game()
+
 	if _failures.is_empty():
 		print("SMOKE TEST PASSED")
 	else:

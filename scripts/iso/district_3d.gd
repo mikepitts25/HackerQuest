@@ -485,6 +485,13 @@ func _spawn_cop(_index: int, tracker := false) -> void:
 	ch.add_to_group("police_pressure")
 	add_child(ch)
 	_tint_body(ch, Color("2f5f86") if not tracker else Color("b91c2b"))
+	# During a trace you can turn and fight a tracker (G6) instead of running —
+	# win and the trace ends with heat cleared; lose and they bust you.
+	if tracker:
+		_interact(ch, "Fight the trace unit", Vector3(0.7, 1.4, 0.7),
+				func() -> void:
+					if GameState.trace_active:
+						main.start_combat("tracker_unit"))
 	var label := Label3D.new()
 	label.text = "TRACE UNIT" if tracker else "BEAT COP"
 	label.font_size = 28

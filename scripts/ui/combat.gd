@@ -261,9 +261,18 @@ func _post_move() -> void:
 
 
 func _on_continue() -> void:
+	# A trace fight resolves its trace state here, after the panel closes, so the
+	# bust dialog (on a loss) doesn't stack on top of combat.
+	var was_tracker: bool = _session.enemy_id == "tracker_unit"
+	var won: bool = _session.outcome == _session.WIN
 	visible = false
 	GameState.unlock_ui()
 	_session = null
+	if was_tracker and GameState.trace_active:
+		if won:
+			GameState.defeat_trace()
+		else:
+			GameState.lose_trace_fight()
 
 
 # --- outcome / rewards --------------------------------------------------------
@@ -273,7 +282,10 @@ func _apply_outcome() -> void:
 		_session.WIN:
 			_award_loot()
 		_session.LOSE:
-			_apply_loss()
+			if _session.enemy_id == "tracker_unit" and GameState.trace_active:
+				_session._log("> they had you cold. the trace completes...")  # bust applied on CONTINUE
+			else:
+				_apply_loss()
 		_session.FLED:
 			_session._log("> you slipped the net. no reward, no scars.")
 

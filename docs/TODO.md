@@ -135,8 +135,10 @@ chase and fight you, gear with stats, way more to do. Build order:
       PROGRAM/JACK OUT) on the G4 stat layer. Headless CombatSession core +
       ENEMIES table (skid → cracker → trace unit → R10T) + combat programs
       (logic bomb/patch kit/proxy smoke) + combat screen (color log, hit
-      flash) + rare street encounters and a once-per-game R10T boss. Verified
-      live + balance-checked. Open: fight-the-tracker during a trace.
+      flash) + rare street encounters and a once-per-game R10T boss. Plus
+      fight-the-tracker: during a trace you can tap a converging trace unit and
+      fight it — win clears the trace (heat zeroed), lose busts you. Verified
+      live + balance-checked.
 - [x] **G7 — street life** SHIPPED: cars ring the big districts on lane paths
       (`vehicle_3d.gd` + `district_3d._ring_road`), citizens zip by on glowing
       hoverboards (`wanderer_3d.rider`), and crowds are denser. Verified live

@@ -45,6 +45,7 @@ var _news_day := -1
 func _ready() -> void:
 	GameState.busted.connect(_on_busted)
 	GameState.trace_started.connect(_on_trace_started)
+	GameState.trace_cleared.connect(_on_trace_cleared)
 	_build_toast_feed()
 	GameState.toast.connect(_on_toast)
 	GameState.stats_changed.connect(_update_daylight)
@@ -57,7 +58,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	GameState.tick_trace(delta)
+	# The trace countdown pauses while you're in a fight — standing to fight a
+	# tracker shouldn't let the timer bust you mid-combat.
+	if not combat.visible:
+		GameState.tick_trace(delta)
 
 
 # A new day = one CITY WIRE headline + today's district modifier.
@@ -293,6 +297,14 @@ func _on_trace_started(_reason: String, _seconds: float) -> void:
 	var district := world_container.get_child(0) if world_container.get_child_count() > 0 else null
 	if district != null and district.has_method("add_trace_pressure"):
 		district.add_trace_pressure()
+
+
+# Trace over (escaped, fought off, or busted) — pull the cop pressure from the
+# current district so the streets settle.
+func _on_trace_cleared(_escaped: bool) -> void:
+	var district := world_container.get_child(0) if world_container.get_child_count() > 0 else null
+	if district != null and district.has_method("_clear_police_pressure"):
+		district._clear_police_pressure()
 
 
 func _on_busted() -> void:
