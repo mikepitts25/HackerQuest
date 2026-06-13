@@ -30,7 +30,6 @@ var _bag_modal := {}
 var _wifi_modal := {}
 var _apt_modal := {}
 var _furnish_modal := {}
-var _laptop_nudged := false  # one-time "you can afford the laptop" toast
 var _contracts_modal := {}
 var _map_modal := {}
 var _phone_modal := {}
@@ -68,6 +67,7 @@ func _ready() -> void:
 	_map_modal.rows.add_child(_city_map)
 	_modals = [_jobs_modal, _skills_modal, _bag_modal, _wifi_modal, _apt_modal, _furnish_modal, _contracts_modal, _favors_modal, _goods_modal, _quests_modal, _loadout_modal, _phone_modal, _map_modal]
 	GameState.stats_changed.connect(_refresh_stats)
+	GameState.stats_changed.connect(_refresh_quest)  # active gigs surface here too
 	GameState.prompt_changed.connect(_on_prompt_changed)
 	GameState.quest_changed.connect(_refresh_quest)
 	_refresh_stats()
@@ -258,6 +258,15 @@ func _set_heat_pulse(on: bool) -> void:
 
 
 func _refresh_quest() -> void:
+	# An accepted gig is your most immediate objective — surface where to go.
+	if not GameState.active_jobs.is_empty():
+		var jid: String = GameState.active_jobs[0]
+		var job: Dictionary = GameData.JOBS[jid]
+		var more := ""
+		if GameState.active_jobs.size() > 1:
+			more = "  (+%d more)" % (GameState.active_jobs.size() - 1)
+		_quest_label.text = "◆ GIG: %s → %s%s" % [job.name, GameData.DISTRICTS[job.district]["name"], more]
+		return
 	_quest_label.text = "▸  " + GameState.current_quest_text()
 
 
@@ -873,21 +882,28 @@ func _close_jobs() -> void:
 
 func _refresh_jobs() -> void:
 	var title := "GIG BOARD" if _jobs_board == "corp" else "JOB BOARD"
-	_jobs_modal.title.text = "%s   ($%d — E %d/%d)" % [title, GameState.cash, GameState.energy, GameState.max_energy]
+	_jobs_modal.title.text = "%s   ($%d · gigs %d/%d)" % [
+		title, GameState.cash, GameState.active_jobs.size(), GameState.MAX_ACTIVE_JOBS]
 	_clear_rows(_jobs_modal)
-	# A randomized handful for today, refreshed each morning. R10T may have
-	# beaten you to one of them.
+	# Active gigs up top with their destination, so you know where to go.
+	for jid in GameState.active_jobs:
+		var aj: Dictionary = GameData.JOBS[jid]
+		_add_row(_jobs_modal, "● " + aj.name,
+				"ACTIVE — go to %s and do the work (marked on the ground)." % GameData.DISTRICTS[aj.district]["name"],
+				"", true, Callable())
+	# Today's board. R10T may have beaten you to one of them.
 	var gigs: Array = GameState.daily_gigs(_jobs_board)
 	var claimed := -1
 	if hash("r10t_%s_%d" % [_jobs_board, GameState.day]) % 4 == 0 and gigs.size() > 0:
 		claimed = hash("r10ti_%s_%d" % [_jobs_board, GameState.day]) % gigs.size()
 	for i in gigs.size():
 		var id: String = gigs[i]
+		if GameState.has_active_job(id):
+			continue  # already shown in the active list above
 		var job: Dictionary = GameData.JOBS[id]
 		if i == claimed:
 			_add_row(_jobs_modal, job.name,
-					"CLAIMED — R10T got here first. Check back tomorrow.",
-					"TAKEN", true, Callable())
+					"CLAIMED — R10T got here first. Check back tomorrow.", "TAKEN", true, Callable())
 			continue
 		var bkind := "jobs_corp" if _jobs_board == "corp" else "jobs_plaza"
 		var pay := int(round(job.cash * GameState.hustle_mult()
@@ -895,70 +911,32 @@ func _refresh_jobs() -> void:
 		var heat: int = job.get("heat", 0)
 		var success := int(round((1.0 - GameState.gig_risk(id)) * 100.0))
 		var status_req: int = job.get("status_req", 0)
-		# Risk/reward, spelled out so the player is making a bet, not a click.
-		var desc: String = job.desc
+		var dname: String = GameData.DISTRICTS[job.district]["name"]
+		var desc: String = "%s   → %s · -%dE · ~$%d" % [job.desc, dname, job.energy, pay]
 		if heat > 0:
 			desc += "   [risk: +%d heat · %d%% clean]" % [heat, success]
-		var btn_text: String
+		var btn_text := "ACCEPT"
 		var disabled := false
+		var on_press := _accept_job.bind(id)
 		if GameState.status_index() < status_req:
 			btn_text = "LOCKED"
 			disabled = true
+			on_press = Callable()
 			desc += "  (requires %s status)" % GameData.STATUS_RANKS[status_req]["title"]
 		elif job.req_computer and not GameState.has_computer:
 			btn_text = "NEED PC"
 			disabled = true
-		else:
-			btn_text = "-%dE → +$%d" % [job.energy, pay]
-			disabled = GameState.energy < job.energy
-		_add_row(_jobs_modal, job.name, desc, btn_text, disabled, _do_job.bind(id))
+			on_press = Callable()
+		elif GameState.active_jobs.size() >= GameState.MAX_ACTIVE_JOBS:
+			btn_text = "FULL"
+			disabled = true
+			on_press = Callable()
+		_add_row(_jobs_modal, job.name, desc, btn_text, disabled, on_press)
 
 
-func _do_job(id: String) -> void:
-	var job: Dictionary = GameData.JOBS[id]
-	if not GameState.use_energy(job.energy):
-		_refresh_jobs()
-		return
-	var bkind := "jobs_corp" if job.get("board", "plaza") == "corp" else "jobs_plaza"
-	var pay := int(round(job.cash * GameState.hustle_mult()
-			* GameState.daily_mult(bkind) * GameState.mastery_mult(bkind)))
-	var heat: int = job.get("heat", 0)
-	# Jobs are your lifeline before the laptop — they pay real XP then. Once you
-	# own a rig, hacking is the XP engine and gigs become cash grunt work, so the
-	# board can't be farmed for endless levels.
-	var xp_clean := 8 if not GameState.has_computer else 2
-	var xp_side := 4 if not GameState.has_computer else 1
-	GameState.add_mastery("corp_row" if bkind == "jobs_corp" else "plaza")
-	# The bet resolves: a clean run pays out, a blown one pays scraps and
-	# spikes your heat.
-	if randf() < GameState.gig_risk(id):
-		var salvage := int(pay * 0.25)
-		GameState.add_cash(salvage)
-		GameState.add_heat(int(heat * 1.5) + 5)
-		GameState.add_xp(xp_side)
-		GameState.notify("Job went sideways! Salvaged +$%d — and you're hot now." % salvage, GameState.COL_BAD)
-	else:
-		GameState.add_cash(pay)
-		GameState.add_xp(xp_clean)
-		if heat > 0:
-			GameState.add_heat(heat)
-		GameState.notify("+$%d, +%d XP — %s done clean" % [pay, xp_clean, job.name], GameState.COL_GOOD)
-		if randf() < job.rep_chance:
-			GameState.add_rep(1)
-			GameState.notify("+1 REP — word gets around", GameState.COL_INFO)
-	_maybe_nudge_laptop()
+func _accept_job(id: String) -> void:
+	GameState.accept_job(id)
 	_refresh_jobs()
-
-
-# One-time nudge when you first scrape together enough for the used laptop —
-# makes hitting that first $100 milestone feel like the goal it is.
-func _maybe_nudge_laptop() -> void:
-	if GameState.has_computer or _laptop_nudged:
-		return
-	var price: int = GameData.UPGRADES["used_laptop"]["price"]
-	if GameState.cash >= price:
-		_laptop_nudged = true
-		GameState.notify("That's enough for the used laptop — grab it at the PAWN SHOP.", GameState.COL_GOOD)
 
 
 # --- Skills ------------------------------------------------------------------------

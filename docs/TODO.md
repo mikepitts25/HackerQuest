@@ -79,10 +79,16 @@ networks**, **Darknet contracts**, **Corp Row gig board**, **apartments**,
       closes any modal** — a reliable touch escape. (Automated test taps can
       still hit a hidden modal's off-screen button; that's a harness quirk, not
       a play issue.)
-- [x] **Jobs aren't an endless XP faucet** — gigs pay full XP only before you
-      own the laptop (your early lifeline); once you have a rig, hacking is the
-      XP engine and gigs drop to token XP (cash grunt work). A one-time toast
-      nudges you to the PAWN SHOP the moment you can afford the laptop.
+- [x] **Field gigs (job board v2)** — the board is no longer a click-for-cash
+      button. You ACCEPT up to two gigs, each sends you to a target district
+      where a glowing ground marker + beam + label spawns; interact there to do
+      the work (energy + the risk bet resolve on completion). Archetypes:
+      wifi-crack, dead-drop, shady-meet, corporate-heist (advanced). Wayfinding:
+      HUD objective line ("◆ GIG: … → District"), a pulsing flag on the CITY
+      GRID map, and the marker itself. `GameData.JOBS` carries archetype +
+      district; `GameState.active_jobs` (+ accept_job/complete_job/jobs_changed)
+      drives it; markers render in `district_3d`. Jobs still taper XP post-laptop
+      (token XP once you own a rig) and the laptop nudge fires on first $100.
 - [ ] **Walking onto exits/NPCs** needs precise positioning at high zoom. Consider
       auto-travel when standing in a doorway for a beat, or bigger exit hitboxes.
 - [ ] **Balance pass** on the full curve (early scavenging → endgame ai_datacenter).

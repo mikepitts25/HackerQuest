@@ -46,6 +46,7 @@ func _ready() -> void:
 	GameState.busted.connect(_on_busted)
 	GameState.trace_started.connect(_on_trace_started)
 	GameState.trace_cleared.connect(_on_trace_cleared)
+	GameState.jobs_changed.connect(_on_jobs_changed)
 	_build_toast_feed()
 	GameState.toast.connect(_on_toast)
 	GameState.stats_changed.connect(_update_daylight)
@@ -107,9 +108,9 @@ func go_to(district_id: String, spawn_id: String) -> void:
 		child.queue_free()
 
 	var district: Node3D = load(DISTRICT_SCENES[district_id]).instantiate()
+	current_district_id = district_id  # set before build() so it can place gig markers
 	world_container.add_child(district)
 	district.build(self)
-	current_district_id = district_id
 
 	player.global_position = district.spawn_point(spawn_id)
 	player.reset_proximity()
@@ -309,6 +310,14 @@ func _on_trace_cleared(_escaped: bool) -> void:
 	var district := world_container.get_child(0) if world_container.get_child_count() > 0 else null
 	if district != null and district.has_method("_clear_police_pressure"):
 		district._clear_police_pressure()
+
+
+# A gig was accepted/completed — re-mark the current district so the glowing
+# marker appears or clears without needing to leave and come back.
+func _on_jobs_changed() -> void:
+	var district := world_container.get_child(0) if world_container.get_child_count() > 0 else null
+	if district != null and district.has_method("refresh_job_markers"):
+		district.refresh_job_markers()
 
 
 func _on_busted() -> void:

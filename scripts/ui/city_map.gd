@@ -120,6 +120,11 @@ func _draw() -> void:
 			# Tiny padlock: body + shackle.
 			draw_rect(Rect2(p + Vector2(-4.5, -1), Vector2(9, 7)), COL_LOCKED)
 			draw_arc(p + Vector2(0, -2), 3.5, PI, TAU, 12, COL_LOCKED, 2.0)
+		# Pulsing amber ring + "!" when an accepted gig is waiting here.
+		if unlocked and not GameState.active_jobs_in(id).is_empty():
+			var gr := 17.0 + sin(_t * 4.0) * 2.0
+			draw_arc(p, gr, 0, TAU, 32, Color(1.0, 0.82, 0.25), 2.5)
+			draw_string(font, p + Vector2(9, -9), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1.0, 0.82, 0.25))
 		draw_string(font, p + Vector2(-110, 32), dname,
 				HORIZONTAL_ALIGNMENT_CENTER, 220, 15,
 				COL_TEXT if unlocked else COL_DIM)

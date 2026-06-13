@@ -74,12 +74,30 @@ func _ready() -> void:
 	terminal.close_terminal()
 	_check(GameState.energy == e_before - 1, "exploit drains 1 energy")
 
-	# --- jobs ---
-	hud.show_jobs()
+	# --- field gigs: accept from the board, complete out in the city ---
+	GameState.active_jobs.clear()
+	GameState.energy = 9
 	cash_before = GameState.cash
-	hud._do_job("fix_router")
-	_check(GameState.cash == cash_before + 20, "job paid $20")
-	hud._close_jobs()
+	_check(GameState.accept_job("fix_router"), "accept a gig (no energy spent)")
+	_check(GameState.has_active_job("fix_router"), "gig is now active")
+	_check("fix_router" in GameState.active_jobs_in("plaza"), "gig is flagged in its target district")
+	_check(not GameState.accept_job("fix_router"), "can't re-accept the same gig")
+	var e_job := GameState.energy
+	_check(GameState.complete_job("fix_router"), "complete the gig at its marker")
+	_check(GameState.cash == cash_before + 20, "gig paid $20 on completion")
+	_check(GameState.energy == e_job - 2, "gig spent its energy when done, not when accepted")
+	_check(not GameState.has_active_job("fix_router"), "completed gig clears from active")
+	# Two-gig cap.
+	GameState.accept_job("fix_router")
+	GameState.accept_job("ewaste_run")
+	_check(GameState.active_jobs.size() == 2, "can hold two gigs at once")
+	_check(not GameState.accept_job("courier"), "third gig refused at the two-gig cap")
+	# Persist across save/load.
+	GameState.save_game()
+	GameState.active_jobs = []
+	GameState.load_game()
+	_check(GameState.active_jobs.size() == 2, "active gigs persist across save/load")
+	GameState.active_jobs.clear()
 
 	# --- quests ---
 	_check(GameState.quest_index >= 4, "quest line advanced through laptop + first bot")

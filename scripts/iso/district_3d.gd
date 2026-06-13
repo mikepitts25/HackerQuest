@@ -39,6 +39,23 @@ const SHOP_BLDG_SCENE := "res://assets/iso/buildings/bldg_shop.tscn"
 const GROUND_COLOR := Color(0.078, 0.086, 0.118)
 const WALL_COLOR := Color(0.067, 0.078, 0.102)
 
+# Field-gig markers (job board v2). Archetype → action prompt + marker color.
+const JOB_ARCHETYPES := {
+	"wifi": {"prompt": "Crack the node", "color": Color("7ee787")},
+	"drop": {"prompt": "Handle the drop", "color": Color("ffd166")},
+	"meet": {"prompt": "Meet the contact", "color": Color("b277e0")},
+	"heist": {"prompt": "Lift the data", "color": Color("ff6b6b")},
+	"recon": {"prompt": "Case the spot", "color": Color("7adfff")},
+}
+# Open floor spots per district where gig markers land (up to two at once).
+const JOB_SPOTS := {
+	"plaza": [Vector2(11, 11), Vector2(16, 11.5)],
+	"market": [Vector2(10, 10.5), Vector2(14.5, 10.5)],
+	"underpass": [Vector2(7.5, 8), Vector2(11, 8)],
+	"corp_row": [Vector2(10, 11), Vector2(6, 11)],
+	"darknet": [Vector2(9, 10), Vector2(13, 10)],
+}
+
 var main: Node
 var area_size := Vector2(12, 9)  # meters
 var _spawns := {}                # spawn id -> Vector2 (x, z)
@@ -64,6 +81,7 @@ func build(p_main: Node) -> void:
 	_spawn_crowd(_crowd_size())
 	_spawn_hoverboarders(_hoverboarder_count())
 	_spawn_traffic()
+	_render_job_markers()
 
 
 # Override in subclasses. Set area_size, then lay out the district.
@@ -404,6 +422,92 @@ func _path_length(path: PackedVector2Array) -> float:
 	for i in path.size():
 		total += path[i].distance_to(path[(i + 1) % path.size()])
 	return total
+
+
+# --- field gigs (job board v2) ------------------------------------------------
+
+# Drop a glowing marker for each accepted gig whose target is this district.
+# Interacting at the marker does the work (GameState.complete_job).
+# Re-stamp gig markers after the active list changes (accepting/completing one
+# while you're standing in its district). Called by main_3d on jobs_changed.
+func refresh_job_markers() -> void:
+	for n in get_tree().get_nodes_in_group("job_marker"):
+		if is_ancestor_of(n):
+			n.queue_free()
+	_render_job_markers()
+
+
+func _render_job_markers() -> void:
+	var here: String = main.current_district_id if main else ""
+	if here == "":
+		return
+	var jobs: Array = GameState.active_jobs_in(here)
+	var spots: Array = JOB_SPOTS.get(here, [])
+	for i in jobs.size():
+		var jid: String = jobs[i]
+		var job: Dictionary = GameData.JOBS[jid]
+		var arch: Dictionary = JOB_ARCHETYPES.get(job.get("archetype", "drop"), JOB_ARCHETYPES["drop"])
+		var pos: Vector2 = spots[i] if i < spots.size() else Vector2(area_size.x * 0.5, area_size.y * 0.6)
+		_job_marker(pos, arch.color, job.name, arch.prompt, jid)
+
+
+# A glowing ground disc + light beam + floating label, interactable to do the
+# job. Frees itself once the gig is completed.
+func _job_marker(pos: Vector2, color: Color, label_text: String, prompt: String, jid: String) -> void:
+	var holder := Node3D.new()
+	holder.position = Vector3(pos.x, 0, pos.y)
+	holder.add_to_group("job_marker")
+	add_child(holder)
+
+	var disc := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 1.0
+	cm.bottom_radius = 1.0
+	cm.height = 0.04
+	var dmat := StandardMaterial3D.new()
+	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dmat.albedo_color = Color(color.r, color.g, color.b, 0.7)
+	dmat.emission_enabled = true
+	dmat.emission = color
+	dmat.emission_energy_multiplier = 1.8
+	cm.material = dmat
+	disc.mesh = cm
+	disc.position.y = 0.03
+	holder.add_child(disc)
+
+	var beam := MeshInstance3D.new()
+	var bm := CylinderMesh.new()
+	bm.top_radius = 0.12
+	bm.bottom_radius = 0.12
+	bm.height = 3.0
+	var bmat := StandardMaterial3D.new()
+	bmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bmat.albedo_color = Color(color.r, color.g, color.b, 0.22)
+	bmat.emission_enabled = true
+	bmat.emission = color
+	bmat.emission_energy_multiplier = 1.3
+	bm.material = bmat
+	beam.mesh = bm
+	beam.position.y = 1.5
+	holder.add_child(beam)
+
+	var lbl := Label3D.new()
+	lbl.text = "◆ GIG\n%s" % label_text
+	lbl.font_size = 30
+	lbl.pixel_size = 0.01
+	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lbl.modulate = color
+	lbl.outline_size = 8
+	lbl.position = Vector3(0, 2.4, 0)
+	holder.add_child(lbl)
+
+	var pulse := disc.create_tween().set_loops()
+	pulse.tween_property(disc, "scale", Vector3(1.15, 1, 1.15), 0.8)
+	pulse.tween_property(disc, "scale", Vector3.ONE, 0.8)
+
+	# Completing emits jobs_changed → main refreshes markers (frees this one).
+	_interact(holder, prompt, Vector3(1.6, 1.6, 1.6),
+			func() -> void: GameState.complete_job(jid))
 
 
 # A scavengable e-waste pile. Dim state derives from GameState so it stays

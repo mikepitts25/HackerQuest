@@ -576,59 +576,81 @@ const GEAR := {
 		"desc": "You're barely on the grid anymore."},
 }
 
+# Field gigs: accept up to two (GameState.active_jobs), then travel to the
+# `district` where a glowing marker spawns and DO the work (energy + the
+# risk/reward bet resolve there, not at the board). `archetype` flavors the
+# marker and the action prompt (see district_3d.JOB_ARCHETYPES):
+#   wifi  — crack a node for a client      drop  — grab/deliver a package
+#   meet  — meet a shady contact           heist — lift corporate data (advanced)
 const JOBS := {
 	"fix_router": {
 		"name": "Fix a neighbor's router",
 		"desc": "Reboot it, blow on the ports, look professional.",
+		"archetype": "wifi", "district": "plaza",
 		"energy": 2, "cash": 20, "rep_chance": 0.25, "req_computer": false,
 		"heat": 0, "risk": 0.0,
 	},
 	"ewaste_run": {
 		"name": "E-waste recycling run",
-		"desc": "Haul dead monitors to the depot. Honest, sweaty money.",
+		"desc": "Haul dead monitors to the Market depot. Honest, sweaty money.",
+		"archetype": "drop", "district": "market",
 		"energy": 3, "cash": 35, "rep_chance": 0.1, "req_computer": false,
 		"heat": 0, "risk": 0.0,
 	},
+	"neighbor_wifi": {
+		"name": "Crack a client's WiFi",
+		"desc": "A Market tenant locked themselves out. Get them back in.",
+		"archetype": "wifi", "district": "market",
+		"energy": 2, "cash": 55, "rep_chance": 0.2, "req_computer": true,
+		"heat": 2, "risk": 0.08,
+	},
 	"wipe_drives": {
 		"name": "Wipe drives for the pawn shop",
-		"desc": "No questions asked. None answered.",
+		"desc": "Meet the broker at the Market. No questions, none answered.",
+		"archetype": "meet", "district": "market",
 		"energy": 2, "cash": 30, "rep_chance": 0.2, "req_computer": true,
 		"heat": 3, "risk": 0.10,
 	},
 	"courier": {
 		"name": "Run a package, no peeking",
-		"desc": "Cross town, hand it off, don't get curious.",
+		"desc": "Pick up a drop in the Underpass, don't get curious.",
+		"archetype": "drop", "district": "underpass",
 		"energy": 2, "cash": 45, "rep_chance": 0.25, "req_computer": false,
 		"heat": 4, "risk": 0.12,
 	},
 	"data_broker": {
 		"name": "Move scraped records",
-		"desc": "A broker pays well for 'totally legal' data.",
+		"desc": "Meet a broker under the expressway. They pay for 'legal' data.",
+		"archetype": "meet", "district": "underpass",
 		"energy": 3, "cash": 90, "rep_chance": 0.35, "req_computer": true, "status_req": 2,
 		"heat": 6, "risk": 0.15,
 	},
 	"fixer_job": {
 		"name": "A job for the fixer",
-		"desc": "Discreet work, discreet pay. Reputation opens this door.",
+		"desc": "A discreet meet in the Underpass. Reputation opens this door.",
+		"archetype": "meet", "district": "underpass",
 		"energy": 4, "cash": 180, "rep_chance": 0.5, "req_computer": true, "status_req": 3,
 		"heat": 10, "risk": 0.20,
 	},
 	# --- Corp Row gigs (board: "corp") — serious money for serious status. ---
 	"pentest": {
 		"name": "Sanctioned pentest",
-		"desc": "A firm pays you to break in 'legally'. Wink.",
+		"desc": "Break into a firm's server on Corp Row. 'Legally.' Wink.",
+		"archetype": "heist", "district": "corp_row",
 		"energy": 4, "cash": 400, "rep_chance": 0.6, "req_computer": true, "status_req": 3, "board": "corp",
 		"heat": 12, "risk": 0.20,
 	},
 	"corp_sabotage": {
 		"name": "Corporate sabotage",
-		"desc": "A rival wants a competitor's quarter ruined. Untraceable.",
+		"desc": "Lift a rival's quarterly off a Corp Row node. Untraceable.",
+		"archetype": "heist", "district": "corp_row",
 		"energy": 5, "cash": 750, "rep_chance": 0.7, "req_computer": true, "status_req": 4, "board": "corp",
 		"heat": 20, "risk": 0.30,
 	},
 	"insider_feed": {
 		"name": "Feed the insiders",
-		"desc": "Stream a board's secrets to people who trade on them.",
+		"desc": "Drop a board's secrets to a Darknet contact who trades on them.",
+		"archetype": "heist", "district": "darknet",
 		"energy": 5, "cash": 1300, "rep_chance": 0.8, "req_computer": true, "status_req": 6, "board": "corp",
 		"heat": 30, "risk": 0.35,
 	},

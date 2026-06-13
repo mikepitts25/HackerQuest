@@ -14,6 +14,7 @@ signal quest_changed
 signal cosmetics_changed
 signal trace_started(reason: String, seconds: float)
 signal trace_cleared(escaped: bool)
+signal jobs_changed  # active field gigs added/completed — districts re-mark
 
 const COL_GOOD := Color("7ee787")
 const COL_BAD := Color("ff6b6b")
@@ -35,7 +36,7 @@ const PERSISTED := [
 	"skill_points", "status_seen", "skills", "inventory", "quest_index", "total_hacks",
 	"hacked_ever", "exploited", "botted", "trash_searched", "wired_cpu",
 	"fixer_used", "apartment", "ambient", "known_networks",
-	"active_contract", "completed_contracts", "owned_cosmetics", "equipped",
+	"active_contract", "completed_contracts", "owned_cosmetics", "equipped", "active_jobs",
 	"mastery", "favors_done", "goods", "handle", "skin_tone", "background",
 	"scrap_bounty_done", "owned_gear", "gear", "r10t_beaten", "owned_furniture",
 ]
@@ -110,6 +111,12 @@ var known_networks: Array = []
 # Darknet contracts: one active bounty at a time, plus a record of finished ones.
 var active_contract := ""
 var completed_contracts: Array = []
+
+# Field gigs you've accepted from the job board (up to MAX_ACTIVE_JOBS). Each is
+# a GameData.JOBS id; you complete it at a marker in its target district.
+var active_jobs: Array = []
+const MAX_ACTIVE_JOBS := 2
+var _laptop_nudged := false  # one-time "you can afford the laptop" toast
 
 # Cosmetics: which the player owns, and what's worn per slot. Free defaults are
 # owned from the start. Purely visual — the player sprite reads `equipped`.
@@ -235,6 +242,8 @@ func new_game() -> void:
 	known_networks = []
 	active_contract = ""
 	completed_contracts = []
+	active_jobs = []
+	_laptop_nudged = false
 	mastery = {}
 	favors_done = []
 	goods = {}
@@ -960,6 +969,93 @@ func daily_gigs(board: String) -> Array:
 func gig_risk(id: String) -> float:
 	var base: float = GameData.JOBS[id].get("risk", 0.0)
 	return maxf(0.0, base - 0.04 * skill("stealth"))
+
+
+# --- Field gigs (accept from the board, do them out in the city) -------------
+
+func has_active_job(id: String) -> bool:
+	return id in active_jobs
+
+
+func active_jobs_in(district: String) -> Array:
+	var out: Array = []
+	for jid in active_jobs:
+		if GameData.JOBS.get(jid, {}).get("district", "") == district:
+			out.append(jid)
+	return out
+
+
+# Take a gig off the board. Doesn't spend energy — that happens when you do the
+# work at the marker. Returns false (with a toast) if you can't take it.
+func accept_job(id: String) -> bool:
+	if id in active_jobs:
+		return false
+	if active_jobs.size() >= MAX_ACTIVE_JOBS:
+		notify("Two gigs is your limit — finish one first.", COL_WARN)
+		return false
+	var job: Dictionary = GameData.JOBS[id]
+	if status_index() < job.get("status_req", 0):
+		notify("That gig needs %s status." % GameData.STATUS_RANKS[job.status_req]["title"], COL_WARN)
+		return false
+	if job.get("req_computer", false) and not has_computer:
+		notify("You'll need a computer for that gig.", COL_WARN)
+		return false
+	active_jobs.append(id)
+	var dname: String = GameData.DISTRICTS[job.district]["name"]
+	notify("Gig accepted: %s — head to %s." % [job.name, dname], COL_INFO)
+	stats_changed.emit()
+	jobs_changed.emit()
+	save_game()
+	return true
+
+
+# Do the work at the gig's marker. Spends energy and resolves the risk/reward
+# bet here. Returns true if the gig was attempted (consumed), false if you
+# couldn't (e.g. out of energy — already toasted). Mirrors the old instant
+# payout, with the pre/post-laptop XP taper.
+func complete_job(id: String) -> bool:
+	if not (id in active_jobs):
+		return false
+	var job: Dictionary = GameData.JOBS[id]
+	if not use_energy(job.energy):
+		return false
+	var bkind := "jobs_corp" if job.get("board", "plaza") == "corp" else "jobs_plaza"
+	var pay := int(round(job.cash * hustle_mult() * daily_mult(bkind) * mastery_mult(bkind)))
+	var heat_amt: int = job.get("heat", 0)
+	var xp_clean := 8 if not has_computer else 2
+	var xp_side := 4 if not has_computer else 1
+	add_mastery("corp_row" if bkind == "jobs_corp" else "plaza")
+	active_jobs.erase(id)
+	if randf() < gig_risk(id):
+		var salvage := int(pay * 0.25)
+		add_cash(salvage)
+		add_heat(int(heat_amt * 1.5) + 5)
+		add_xp(xp_side)
+		notify("Job went sideways! Salvaged +$%d — and you're hot now." % salvage, COL_BAD)
+	else:
+		add_cash(pay)
+		add_xp(xp_clean)
+		if heat_amt > 0:
+			add_heat(heat_amt)
+		notify("+$%d, +%d XP — %s done clean" % [pay, xp_clean, job.name], COL_GOOD)
+		if randf() < job.rep_chance:
+			add_rep(1)
+			notify("+1 REP — word gets around", COL_INFO)
+	_maybe_nudge_laptop()
+	stats_changed.emit()
+	jobs_changed.emit()
+	save_game()
+	return true
+
+
+# One-time nudge when you first scrape together enough for the used laptop.
+func _maybe_nudge_laptop() -> void:
+	if has_computer or _laptop_nudged:
+		return
+	var price: int = GameData.UPGRADES["used_laptop"]["price"]
+	if cash >= price:
+		_laptop_nudged = true
+		notify("That's enough for the used laptop — grab it at the PAWN SHOP.", COL_GOOD)
 
 
 func _seeded_shuffle(arr: Array, rng: RandomNumberGenerator) -> void:
