@@ -151,6 +151,9 @@ func _enemy_turn() -> void:
 	if outcome != ONGOING:
 		return
 	turn += 1
+	var taunts: Array = enemy.get("taunts", [])
+	if not taunts.is_empty() and rng.randf() < 0.25:
+		_log("> %s: \"%s\"" % [enemy.name, taunts[rng.randi() % taunts.size()]])
 	var moves: Array = enemy.get("moveset", ["exploit"])
 	match String(moves[rng.randi() % moves.size()]):
 		"firewall":

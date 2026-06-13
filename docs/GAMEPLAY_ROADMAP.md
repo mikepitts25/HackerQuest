@@ -161,9 +161,33 @@ units during active TRACE.
 - Optional: high Stealth skill / a FIREWALL implant lengthens the timer.
 - Effort: ~2–3 days. The countdown UI + trace state machine is the work.
 
-## G6 — Combat: turn-based hacker battles
+## G6 — Combat: turn-based hacker battles (SHIPPED)
 
-The headline new system — RPG/Pokémon-style fights.
+The headline new system — RPG/Pokémon-style fights, built on the G4 stat layer.
+
+Shipped across four phases (see `docs/G6_COMBAT_SCOPE.md`):
+- **Headless core** (`scripts/combat/combat_session.gd`): pure turn-based
+  engine — EXPLOIT / FIREWALL / PROGRAM / JACK OUT, enemy AI
+  (exploit/firewall/ddos/trace_lock), guard + crit + flee math, seedable RNG.
+- **Enemies + programs** (`GameData.ENEMIES`, combat-flagged `CONSUMABLES`):
+  Script Kiddie → Corner Cracker → Trace Unit → R10T, with loot/movesets;
+  Logic Bomb / Patch Kit / Proxy Smoke as PROGRAM items bought from the bag.
+- **Combat screen** (`scripts/ui/combat.gd` + `scenes/ui/combat.tscn`): a
+  Panel mirroring the terminal/shop pattern — integrity bars, a color-coded
+  narration log, neon action buttons, hit-flash + drain tweens. Win pays the
+  enemy's loot; loss is a mild setback (lose a stolen_data or ~25% cash),
+  never a full bust.
+- **Encounters** (`main_3d.roll_encounter` + `_maybe_encounter`): rare street
+  ambushes on district entry, gated by status/offense and scaled by heat, with
+  a post-fight cooldown; a once-per-game R10T boss at Black Hat+.
+- Balance verified by headless Monte Carlo: trash mobs are quick wins for the
+  right tier, R10T is skill-gated (brawling loses, smart play ~80%), and
+  fleeing always escapes a flee-able enemy. Smoke covers the engine + gating.
+
+Open follow-up: fight-the-tracker during a G5 trace (the `tracker_unit` enemy
+and its `heat_clear` loot exist; just needs the in-world hook).
+
+### Original design notes
 
 - **Encounters** (infrequent, so they stay special):
   - A **rival hacker** ambushes you in the world (R10T as a recurring
@@ -228,6 +252,7 @@ furniture, Style score, trophy shelf. Full spec in `ALIVE_ROADMAP.md` Phase 5.
 ## Suggested build order
 
 G1 (economy) → G2 (creation) → G3 (NPCs/quests) → G4 (gear) → G5 (police
-trace) → ~~G7 (street life)~~ SHIPPED → **G6 (combat — next)** → teaser
-districts → apartments. G6 is the remaining headline system; the G1 balance
-pass and G3 branching side-quests are open tails that can slot in anytime.
+trace) → ~~G7 (street life)~~ SHIPPED → ~~G6 (combat)~~ SHIPPED → **teaser
+districts → apartments (the deferred tail)**. The G1 balance pass, G3 branching
+side-quests, and fight-the-tracker (G5↔G6 tie) are open tails that can slot in
+anytime.

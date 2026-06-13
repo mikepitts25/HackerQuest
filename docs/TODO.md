@@ -131,8 +131,12 @@ chase and fight you, gear with stats, way more to do. Build order:
 - [x] **G5 — police escalation** SHIPPED: beat cops + a 30-second TRACE
       countdown. Heat 100 and failed high-risk hacks start TRACE; leaving the
       district shakes it, while timeout applies the existing bust penalty.
-- [ ] **G6 — combat**: infrequent turn-based hacker battles (R10T boss,
-      street enemies), Pokémon/RPG style, stats from gear+skills. The big one.
+- [x] **G6 — combat** SHIPPED: turn-based hacker battles (EXPLOIT/FIREWALL/
+      PROGRAM/JACK OUT) on the G4 stat layer. Headless CombatSession core +
+      ENEMIES table (skid → cracker → trace unit → R10T) + combat programs
+      (logic bomb/patch kit/proxy smoke) + combat screen (color log, hit
+      flash) + rare street encounters and a once-per-game R10T boss. Verified
+      live + balance-checked. Open: fight-the-tracker during a trace.
 - [x] **G7 — street life** SHIPPED: cars ring the big districts on lane paths
       (`vehicle_3d.gd` + `district_3d._ring_road`), citizens zip by on glowing
       hoverboards (`wanderer_3d.rider`), and crowds are denser. Verified live

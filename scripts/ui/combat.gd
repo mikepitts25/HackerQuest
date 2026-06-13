@@ -18,6 +18,8 @@ const C_DIM := Color("5a7a5a")
 
 var _session  # CombatSession (RefCounted)
 var _mono: SystemFont
+var _prev_player_hp := 0
+var _prev_enemy_hp := 0
 
 var _enemy_name: Label
 var _enemy_bar: ProgressBar
@@ -39,6 +41,8 @@ func start(enemy_id: String) -> void:
 	_session = CombatSessionScript.new()
 	_session.init(GameState.combat_stats(), enemy_id)
 	_enemy_name.text = "▓ %s" % _session.enemy.name
+	_prev_player_hp = _session.player_hp
+	_prev_enemy_hp = _session.enemy_hp
 	visible = true
 	GameState.lock_ui()
 	_render()
@@ -147,13 +151,49 @@ func _make_button(text: String, color: Color, action: Callable) -> Button:
 # --- rendering ----------------------------------------------------------------
 
 func _render() -> void:
-	_enemy_bar.max_value = _session.enemy_max
-	_enemy_bar.value = _session.enemy_hp
+	var crit: bool = not _session.log.is_empty() and "CRIT" in _session.log[-1]
+	# Enemy bar flashes bright on your hits; player bar flashes red on theirs.
+	_drain_bar(_enemy_bar, _session.enemy_max, _session.enemy_hp, _prev_enemy_hp, Color(1.8, 1.8, 1.8), crit)
 	_enemy_bar_label.text = "INTEGRITY %d / %d" % [_session.enemy_hp, _session.enemy_max]
-	_player_bar.max_value = _session.player_max
-	_player_bar.value = _session.player_hp
+	_drain_bar(_player_bar, _session.player_max, _session.player_hp, _prev_player_hp, Color(2.0, 0.7, 0.7), crit)
 	_player_bar_label.text = "INTEGRITY %d / %d" % [_session.player_hp, _session.player_max]
-	_log.text = "\n".join(_session.log)
+	_prev_enemy_hp = _session.enemy_hp
+	_prev_player_hp = _session.player_hp
+	var lines: Array[String] = []
+	for line in _session.log:
+		lines.append(_colorize(line))
+	_log.text = "\n".join(lines)
+
+
+# Tween the bar to its new value; flash it if integrity dropped (brighter and
+# longer on a crit) so hits read at a glance.
+func _drain_bar(bar: ProgressBar, max_v: int, hp: int, prev: int, flash: Color, crit: bool) -> void:
+	bar.max_value = max_v
+	create_tween().tween_property(bar, "value", hp, 0.25).from(prev)
+	if hp < prev:
+		bar.modulate = flash * 1.3 if crit else flash
+		var t := create_tween()
+		t.tween_interval(0.12 if crit else 0.05)
+		t.tween_property(bar, "modulate", Color.WHITE, 0.3)
+
+
+# bbcode coloring for log lines so the fight reads: your hits green, theirs red,
+# crits gold, the verdict in its outcome color.
+func _colorize(line: String) -> String:
+	var col := ""
+	if "you win" in line or "spoils" in line:
+		col = "7ee787"
+	elif "you lose" in line or "JACK OUT failed" in line or "ripped" in line or "bled" in line:
+		col = "ff6b6b"
+	elif "CRIT" in line:
+		col = "ffd166"
+	elif line.begins_with("> you"):
+		col = "7ee787"
+	elif _session != null and line.begins_with("> %s" % _session.enemy.name):
+		col = "ff9b9b"
+	if col == "":
+		return line
+	return "[color=#%s]%s[/color]" % [col, line]
 
 
 # state: "choose" (4 actions), "program" (item list), "done" (continue).
