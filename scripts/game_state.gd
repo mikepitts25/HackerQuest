@@ -37,7 +37,7 @@ const PERSISTED := [
 	"fixer_used", "apartment", "ambient", "known_networks",
 	"active_contract", "completed_contracts", "owned_cosmetics", "equipped",
 	"mastery", "favors_done", "goods", "handle", "skin_tone", "background",
-	"scrap_bounty_done", "owned_gear", "gear", "r10t_beaten",
+	"scrap_bounty_done", "owned_gear", "gear", "r10t_beaten", "owned_furniture",
 ]
 
 # True until a save is loaded; lets the main scene pick intro vs "welcome back".
@@ -47,6 +47,9 @@ var owned_gear: Array[String] = []
 # Set once you beat R10T in combat (G6) — gates the rare boss encounter so the
 # rival only ambushes you once.
 var r10t_beaten := false
+# Furniture you've bought for your apartment (Apartments v2). Drives perks +
+# Style score; rendered in home_3d.
+var owned_furniture: Array[String] = []
 var gear := {}   # slot -> gear id (G4)
 
 var trace_active := false
@@ -241,6 +244,7 @@ func new_game() -> void:
 	owned_gear = [] as Array[String]
 	gear = {}
 	r10t_beaten = false
+	owned_furniture = [] as Array[String]
 	_reset_trace()
 	owned_cosmetics = ["hoodie_gray", "hat_none"] as Array[String]
 	equipped = {"outfit": "hoodie_gray", "hat": "hat_none"}
@@ -256,7 +260,7 @@ func new_game() -> void:
 # untyped. Re-cast the fields where that matters.
 func _coerce_loaded(field: String, value: Variant) -> Variant:
 	match field:
-		"upgrades", "owned_cosmetics":
+		"upgrades", "owned_cosmetics", "owned_gear", "owned_furniture":
 			var typed: Array[String] = []
 			for v in value:
 				typed.append(str(v))
@@ -579,6 +583,7 @@ func heat_cooldown_per_day() -> int:
 	cool -= 2 * status_index()        # notoriety = more eyes
 	cool += 4 * skill("stealth")      # tradecraft helps you lie low
 	cool += apartment_perk("cool")    # a safer place cools you off
+	cool += furniture_perk("cool")    # ...and a VPN rack in the corner
 	if owned("vpn"):
 		cool += 8
 	return maxi(5, cool)
@@ -1041,6 +1046,75 @@ func buy_apartment(id: String) -> bool:
 	return true
 
 
+# --- Apartments v2: furniture, Style, trophies -------------------------------
+
+func owns_furniture(id: String) -> bool:
+	return id in owned_furniture
+
+
+# Sum a functional furniture effect across everything you own (cool, income).
+# max_energy is NOT summed here — it's applied once at purchase, like moving.
+func furniture_perk(key: String) -> int:
+	var total := 0
+	for id in owned_furniture:
+		total += int(GameData.FURNITURE[id].get("effect", {}).get(key, 0))
+	return total
+
+
+func style_score() -> int:
+	var total := 0
+	for id in owned_furniture:
+		total += int(GameData.FURNITURE[id].get("style", 0))
+	return total
+
+
+# A decked-out apartment pays a small daily REP trickle (you're somebody now).
+func style_rep_per_day() -> int:
+	return mini(6, style_score() / 30)
+
+
+func buy_furniture(id: String) -> bool:
+	if owns_furniture(id):
+		return false
+	var f: Dictionary = GameData.FURNITURE[id]
+	if status_index() < f.get("status_req", 0):
+		notify("You're not %s enough for that yet." % GameData.STATUS_RANKS[f.status_req]["title"], COL_WARN)
+		return false
+	if cash < f.price:
+		notify("Not enough cash for that.", COL_WARN)
+		return false
+	cash -= f.price
+	owned_furniture.append(id)
+	# Functional max-energy furniture bumps the cap once, here (like moving).
+	var bump: int = int(f.get("effect", {}).get("max_energy", 0))
+	if bump > 0:
+		max_energy += bump
+		energy += bump
+	notify("Bought %s. Style is up." % f.name, COL_GOOD)
+	stats_changed.emit()
+	save_game()
+	return true
+
+
+# Milestone trophies that appear on the shelf as you earn them (derived from
+# live state — not bought). Returns the ids currently earned, in shelf order.
+func trophies() -> Array:
+	var out: Array = []
+	if total_hacks >= 1:
+		out.append("first_pwn")
+	if botnet_size >= 1:
+		out.append("first_bot")
+	if status_index() >= 3:
+		out.append("black_hat")
+	if botnet_size >= 25:
+		out.append("botnet_swarm")
+	if r10t_beaten:
+		out.append("rival_down")
+	if status_index() >= 8:
+		out.append("legend")
+	return out
+
+
 # --- WiFi sniffing ("wild encounters") ---------------------------------------
 
 func has_wifi_adapter() -> bool:
@@ -1419,8 +1493,13 @@ func sleep() -> void:
 	if owned("desk_setup"):
 		income = int(income * 1.5)
 	income += apartment_perk("income")  # rent out the spare room, etc.
+	income += furniture_perk("income")  # the server closet earns its keep
 	if income > 0:
 		cash += income
+	# A stylish place pays a small daily REP trickle — you're somebody now.
+	var style_rep := style_rep_per_day()
+	if style_rep > 0:
+		add_rep(style_rep)
 	# Sleeping it off ends any energy-drink high and resets daily favors.
 	max_cpu -= wired_cpu
 	wired_cpu = 0

@@ -244,10 +244,15 @@ Strip** (casino/cash sink + rival crews), **Signal Yards** (war-driving),
 **Rooftops** (relay endgame), **The Stacks** (container maze). Hooks live in
 `GameData.DISTRICT_MAP.future`.
 
-## LAST — Apartments v2 (the cosmetic money sink)
+## LAST — Apartments v2 (the cosmetic money sink) — SHIPPED
 
-Per the standing design call. Classes per district, functional + cosmetic
-furniture, Style score, trophy shelf. Full spec in `ALIVE_ROADMAP.md` Phase 5.
+Shipped as a furniture system: a **FURNISH board** in the apartment sells
+functional (bed/espresso → +energy, VPN rack → heat cooldown, server closet →
+income) and cosmetic furniture, all rendered in `home_3d`. A **Style score**
+(sum of pieces) pays a small daily REP trickle, and a **trophy shelf** shows a
+glowing token per milestone earned. Built on top of the existing apartment
+tiers. Deferred: classes-per-district / multi-property ownership (a housing
+refactor). Full detail in `ALIVE_ROADMAP.md` Phase 5.
 
 ---
 

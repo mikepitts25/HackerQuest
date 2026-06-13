@@ -548,6 +548,46 @@ func _ready() -> void:
 	_check(GameState.cash == 50, "losing the trace fight busts (half cash)")
 	GameState.new_game()
 
+	# --- apartments v2: furniture, style, trophies ---
+	_check(GameState.style_score() == 0, "no furniture = no Style")
+	GameState.cash = 5000
+	GameState.reputation = 999  # unlock status-gated furniture for these checks
+	var e0 := GameState.max_energy
+	_check(GameState.buy_furniture("smart_bed"), "buy functional furniture")
+	_check(GameState.owns_furniture("smart_bed"), "furniture marked owned")
+	_check(GameState.max_energy == e0 + 3, "smart_bed raises max energy at purchase")
+	_check(not GameState.buy_furniture("smart_bed"), "can't double-buy furniture")
+	_check(GameState.style_score() == GameData.FURNITURE["smart_bed"].style, "Style reflects owned furniture")
+	GameState.buy_furniture("vpn_rack")
+	GameState.buy_furniture("server_closet")
+	_check(GameState.furniture_perk("cool") == 4, "VPN rack adds heat cooldown")
+	_check(GameState.furniture_perk("income") == 20, "server closet adds daily income")
+	GameState.reputation = 0
+	_check(not GameState.buy_furniture("arcade_cab"), "high-status furniture is gated")
+	GameState.reputation = 999
+	GameState.cash = 99999
+	for fid in GameData.FURNITURE:
+		GameState.buy_furniture(fid)
+	_check(GameState.style_rep_per_day() > 0, "a stylish place pays a daily REP trickle")
+	# trophies derive from milestones
+	GameState.new_game()
+	_check(GameState.trophies().is_empty(), "no trophies at the start")
+	GameState.botnet_size = 1
+	GameState.total_hacks = 1
+	_check("first_bot" in GameState.trophies(), "botnet milestone earns a trophy")
+	_check("first_pwn" in GameState.trophies(), "first hack earns a trophy")
+	GameState.r10t_beaten = true
+	_check("rival_down" in GameState.trophies(), "beating R10T earns a trophy")
+	# persistence
+	GameState.new_game()
+	GameState.cash = 1000
+	GameState.buy_furniture("potted_palm")
+	GameState.save_game()
+	GameState.owned_furniture = [] as Array[String]
+	GameState.load_game()
+	_check(GameState.owns_furniture("potted_palm"), "owned furniture persists across save/load")
+	GameState.new_game()
+
 	if _failures.is_empty():
 		print("SMOKE TEST PASSED")
 	else:

@@ -496,6 +496,37 @@ const APARTMENTS := {
 	"penthouse": {"name": "Sky Penthouse", "desc": "You made it. +5 max Energy, +6 Heat cooldown, $45/day.", "price": 9000, "status_req": 6, "max_energy": 5, "cool": 6, "income": 45},
 }
 
+# Apartments v2 (G/LAST) — furniture you buy for your place, the cosmetic money
+# sink. `category` is "functional" (carries an `effect`) or "cosmetic" (pure
+# `style`). Every piece adds to your Style score, which pays a small daily REP
+# trickle. Effects stack on top of the apartment-tier perks: max_energy is
+# applied once at purchase (like moving), cool/income are summed live. Visual
+# placement lives in home_3d.FURNITURE_VISUALS.
+const FURNITURE := {
+	# --- functional ---
+	"smart_bed": {"name": "Memory-Foam Bed", "desc": "Sleep like the rich. +3 max Energy.",
+		"price": 450, "status_req": 0, "category": "functional", "style": 6, "effect": {"max_energy": 3}},
+	"espresso": {"name": "Espresso Machine", "desc": "Wake up wired. +2 max Energy.",
+		"price": 600, "status_req": 0, "category": "functional", "style": 7, "effect": {"max_energy": 2}},
+	"vpn_rack": {"name": "VPN Rack", "desc": "Bounce your traffic. +4 Heat cooldown/day.",
+		"price": 1100, "status_req": 2, "category": "functional", "style": 5, "effect": {"cool": 4}},
+	"server_closet": {"name": "Server Closet", "desc": "Rent out spare compute. +$20/day.",
+		"price": 1600, "status_req": 2, "category": "functional", "style": 8, "effect": {"income": 20}},
+	# --- cosmetic (pure Style) ---
+	"potted_palm": {"name": "Potted Palm", "desc": "A small living thing. It's a start.",
+		"price": 90, "status_req": 0, "category": "cosmetic", "style": 5, "effect": {}},
+	"band_posters": {"name": "Band Posters", "desc": "Cover the water stains.",
+		"price": 140, "status_req": 0, "category": "cosmetic", "style": 7, "effect": {}},
+	"shag_rug": {"name": "Shag Rug", "desc": "Ties the room together.",
+		"price": 280, "status_req": 0, "category": "cosmetic", "style": 9, "effect": {}},
+	"neon_sign": {"name": "Neon Wall Sign", "desc": "Your handle in glowing tubes.",
+		"price": 650, "status_req": 1, "category": "cosmetic", "style": 14, "effect": {}},
+	"jelly_tank": {"name": "Jellyfish Tank", "desc": "Hypnotic. Low maintenance. Pricey.",
+		"price": 1800, "status_req": 3, "category": "cosmetic", "style": 18, "effect": {}},
+	"arcade_cab": {"name": "Arcade Cabinet", "desc": "A whole machine, just to flex.",
+		"price": 2600, "status_req": 4, "category": "cosmetic", "style": 22, "effect": {}},
+}
+
 # Sequential main quest line. cond/value checked in GameState._check_quests.
 const QUESTS := [
 	{"text": "Scrape together $100 (alley trash + job board)", "cond": "cash", "value": 100, "xp": 20, "cash": 0},

@@ -145,8 +145,10 @@ chase and fight you, gear with stats, way more to do. Build order:
       in the plaza. Sweeps/night still thin the streets.
 - [ ] **(LATER) teaser districts** — Old Exchange, Neon Strip, Signal Yards,
       Rooftops, The Stacks (already on the map as "???").
-- [ ] **(LAST) apartments v2** — classes per district, functional + cosmetic
-      furniture, Style score, trophy shelf. Deliberately deferred.
+- [x] **(LAST) apartments v2** SHIPPED — FURNISH board sells functional +
+      cosmetic furniture (rendered in home_3d), Style score pays a daily REP
+      trickle, trophy shelf shows milestone tokens. Verified live + smoke.
+      Deferred: classes-per-district / multi-property (housing refactor).
 
 ## 🎮 Gameplay ideas (older notes — some folded into GAMEPLAY_ROADMAP above)
 

@@ -100,18 +100,33 @@ Pure presentation over existing sim state. Highest aliveness per effort.
 - [ ] **A pet:** SHIPPED (Byte). [see above]
 - [ ] **Phone/inbox:** SHIPPED. [see above]
 
-## Phase 5 (LAST) — Apartments v2: the cosmetic money sink
+## Phase 5 (LAST) — Apartments v2: the cosmetic money sink (SHIPPED)
 
-Deliberately last: it's a sink, not a source of moment-to-moment play.
+The sink shipped as a furniture system on top of the existing apartment tiers
+(`GameData.FURNITURE`, bought from a **FURNISH board** in the apartment):
+
+- [x] **Functional furniture:** Memory-Foam Bed + Espresso Machine (+max
+  Energy, applied at purchase), VPN Rack (+heat cooldown/day), Server Closet
+  (+$/day). Effects stack on the apartment-tier perks.
+- [x] **Cosmetic furniture + Style score:** palm, posters, shag rug, neon
+  sign, jellyfish tank, arcade cabinet — each adds Style; Style pays a small
+  daily REP trickle (`style_rep_per_day`, applied on sleep). All pieces render
+  in `home_3d` (emissive for neon/tank/arcade).
+- [x] **Trophy shelf:** a back-wall shelf with a glowing token per milestone
+  earned (first pwn, first bot, Black Hat, botnet swarm, R10T down, Legend) —
+  derived live from state, not bought.
+- Status-gated like gear; persisted via `owned_furniture`. Smoke-covered.
+
+Deferred (was in the original spec, not built): **classes per district /
+owning multiple apartments / sleep-anywhere** — a housing-model refactor that's
+less aligned with the "cosmetic sink" goal. The single-apartment furniture
+system delivers the sink; multi-property can be a later milestone.
+
+### Original design notes
 
 - **Classes per district:** Squat (Underpass, free) → Studio (Block) →
   Loft (Market) → High-rise (Corp Row) → Penthouse (Drowned Quarter).
   Every owned apartment = spawn point + "sleep anywhere you own".
-- **Functional furniture:** bed tier (energy cap/regen), server closet
-  (botnet cap), VPN rack (heat decay), coffee machine (+1 energy/day).
-- **Cosmetic furniture + Style score:** neon art, aquarium, posters, rugs;
-  Style pays a small daily REP trickle.
-- **Trophy shelf:** physical milestone objects appear as you hit them.
 
 ## Always-on candidates (slot anywhere)
 

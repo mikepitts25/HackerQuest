@@ -29,6 +29,7 @@ var _skills_modal := {}
 var _bag_modal := {}
 var _wifi_modal := {}
 var _apt_modal := {}
+var _furnish_modal := {}
 var _contracts_modal := {}
 var _map_modal := {}
 var _phone_modal := {}
@@ -52,6 +53,7 @@ func _ready() -> void:
 	_bag_modal = _make_modal("BACKPACK")
 	_wifi_modal = _make_modal("WIFI SNIFFER")
 	_apt_modal = _make_modal("VACANCIES")
+	_furnish_modal = _make_modal("FURNISH")
 	_contracts_modal = _make_modal("CONTRACTS")
 	_favors_modal = _make_modal("COMMUNITY BOARD")
 	_goods_modal = _make_modal("GOODS EXCHANGE")
@@ -63,7 +65,7 @@ func _ready() -> void:
 	_city_map.custom_minimum_size = Vector2(560, 540)
 	_city_map.travel_requested.connect(_on_map_travel)
 	_map_modal.rows.add_child(_city_map)
-	_modals = [_jobs_modal, _skills_modal, _bag_modal, _wifi_modal, _apt_modal, _contracts_modal, _favors_modal, _goods_modal, _quests_modal, _loadout_modal, _phone_modal, _map_modal]
+	_modals = [_jobs_modal, _skills_modal, _bag_modal, _wifi_modal, _apt_modal, _furnish_modal, _contracts_modal, _favors_modal, _goods_modal, _quests_modal, _loadout_modal, _phone_modal, _map_modal]
 	GameState.stats_changed.connect(_refresh_stats)
 	GameState.prompt_changed.connect(_on_prompt_changed)
 	GameState.quest_changed.connect(_refresh_quest)
@@ -1084,6 +1086,43 @@ func show_apartments() -> void:
 func _buy_apartment(id: String) -> void:
 	GameState.buy_apartment(id)
 	_show_apartments_impl()
+
+
+# --- Furnish (Apartments v2 furniture catalog) -------------------------------
+
+func _show_furnish_impl() -> void:
+	_clear_rows(_furnish_modal)
+	_furnish_modal.title.text = "FURNISH   ($%d · Style %d · +%d REP/day)" % [
+		GameState.cash, GameState.style_score(), GameState.style_rep_per_day()]
+	for id in GameData.FURNITURE:
+		var f: Dictionary = GameData.FURNITURE[id]
+		var btn_text: String
+		var disabled := false
+		var on_press := Callable()
+		if GameState.owns_furniture(id):
+			btn_text = "OWNED"
+			disabled = true
+		elif GameState.status_index() < f.get("status_req", 0):
+			btn_text = "LOCKED"
+			disabled = true
+		else:
+			btn_text = "$%d" % f.price
+			disabled = GameState.cash < f.price
+			on_press = _buy_furniture.bind(id)
+		var desc: String = "%s  ·  +%d Style" % [f.desc, f.style]
+		if GameState.status_index() < f.get("status_req", 0):
+			desc += "  (needs %s)" % GameData.STATUS_RANKS[f.status_req]["title"]
+		_add_row(_furnish_modal, f.name, desc, btn_text, disabled, on_press)
+
+
+func show_furnish() -> void:
+	_show_furnish_impl()
+	_open_modal(_furnish_modal)
+
+
+func _buy_furniture(id: String) -> void:
+	GameState.buy_furniture(id)
+	_show_furnish_impl()
 
 
 # --- Darknet contracts -------------------------------------------------------

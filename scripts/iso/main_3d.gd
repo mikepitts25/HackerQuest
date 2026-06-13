@@ -201,6 +201,10 @@ func open_apartments() -> void:
 	hud.show_apartments()
 
 
+func open_furnish() -> void:
+	hud.show_furnish()
+
+
 func open_contracts() -> void:
 	hud.show_contracts()
 
