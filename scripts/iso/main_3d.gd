@@ -20,6 +20,7 @@ const DISTRICT_SCENES := {
 @onready var hud: Control = $UILayer/HUD
 @onready var terminal: Panel = $UILayer/Terminal
 @onready var shop: Panel = $UILayer/Shop
+@onready var combat: Panel = $UILayer/Combat
 
 # Day/night ambience. The "clock" is your energy: fresh after sleep = warm
 # dusk; running on fumes = dead of night. Sleeping resets it to dusk.
@@ -126,6 +127,12 @@ func use_desk() -> void:
 
 func open_shop() -> void:
 	shop.open()
+
+
+# Drop into a turn-based fight against a GameData.ENEMIES id (G6). Encounter
+# triggers that call this land in phase 3; for now it's the public entry point.
+func start_combat(enemy_id: String) -> void:
+	combat.start(enemy_id)
 
 
 func show_jobs(board: String = "plaza") -> void:

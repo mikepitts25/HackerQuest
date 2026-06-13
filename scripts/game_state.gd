@@ -607,6 +607,18 @@ func add_item(id: String, count: int = 1) -> void:
 	stats_changed.emit()
 
 
+# Spend an item (combat programs, future crafting). Returns false if you don't
+# have enough. Unlike use_consumable this applies no effect — the caller does.
+func consume_item(id: String, count := 1) -> bool:
+	if inventory.get(id, 0) < count:
+		return false
+	inventory[id] -= count
+	if inventory[id] <= 0:
+		inventory.erase(id)
+	stats_changed.emit()
+	return true
+
+
 func sell_item(id: String) -> bool:
 	if inventory.get(id, 0) <= 0:
 		return false

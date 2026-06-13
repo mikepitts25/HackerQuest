@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/ui/terminal.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/ui/shop.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/ui/combat.tscn" id="7"]
 
 [sub_resource type="Environment" id="env"]
 background_mode = 1
@@ -65,3 +66,5 @@ omni_range = 9.0
 [node name="Terminal" parent="UILayer" unique_id=810567022 instance=ExtResource("5")]
 
 [node name="Shop" parent="UILayer" unique_id=866930922 instance=ExtResource("6")]
+
+[node name="Combat" parent="UILayer" instance=ExtResource("7")]
