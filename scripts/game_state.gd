@@ -37,13 +37,16 @@ const PERSISTED := [
 	"fixer_used", "apartment", "ambient", "known_networks",
 	"active_contract", "completed_contracts", "owned_cosmetics", "equipped",
 	"mastery", "favors_done", "goods", "handle", "skin_tone", "background",
-	"scrap_bounty_done", "owned_gear", "gear",
+	"scrap_bounty_done", "owned_gear", "gear", "r10t_beaten",
 ]
 
 # True until a save is loaded; lets the main scene pick intro vs "welcome back".
 var is_new_game := true
 
 var owned_gear: Array[String] = []
+# Set once you beat R10T in combat (G6) — gates the rare boss encounter so the
+# rival only ambushes you once.
+var r10t_beaten := false
 var gear := {}   # slot -> gear id (G4)
 
 var trace_active := false
@@ -237,6 +240,7 @@ func new_game() -> void:
 	background = "none"
 	owned_gear = [] as Array[String]
 	gear = {}
+	r10t_beaten = false
 	_reset_trace()
 	owned_cosmetics = ["hoodie_gray", "hat_none"] as Array[String]
 	equipped = {"outfit": "hoodie_gray", "hat": "hat_none"}

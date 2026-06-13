@@ -505,6 +505,36 @@ func _ready() -> void:
 	_check(not GameState.use_consumable("logic_bomb"), "combat item can't be used outside a fight")
 	_check(GameState.inventory.get("logic_bomb", 0) == bomb_count, "refused combat item is not consumed")
 
+	# --- encounter gating (G6 phase 3) ---
+	var Main3D := load("res://scripts/iso/main_3d.gd")
+	var erng := RandomNumberGenerator.new()
+	erng.seed = 99
+	_check(Main3D.roll_encounter(0, 0, false, 7, erng) == "", "no ambush below Operator status")
+	_check(Main3D.roll_encounter(3, 50, false, 0, erng) == "", "no ambush without offense")
+	var got_fight := false
+	var got_r10t := false
+	for i in 300:
+		var e: String = Main3D.roll_encounter(3, 100, false, 7, erng)
+		if e != "":
+			got_fight = true
+		if e == "r10t":
+			got_r10t = true
+	_check(got_fight, "high heat/status can spring an ambush")
+	_check(got_r10t, "R10T can appear as a boss when unbeaten")
+	var r10t_again := false
+	for i in 300:
+		if Main3D.roll_encounter(3, 100, true, 7, erng) == "r10t":
+			r10t_again = true
+	_check(not r10t_again, "R10T won't reappear once beaten")
+	# The R10T flag survives a save/load round-trip, then clean up the save.
+	GameState.new_game()
+	GameState.r10t_beaten = true
+	GameState.save_game()
+	GameState.r10t_beaten = false
+	GameState.load_game()
+	_check(GameState.r10t_beaten, "r10t_beaten persists across save/load")
+	GameState.new_game()
+
 	if _failures.is_empty():
 		print("SMOKE TEST PASSED")
 	else:

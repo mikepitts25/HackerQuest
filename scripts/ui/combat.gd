@@ -261,6 +261,8 @@ func _award_loot() -> void:
 		GameState.heat = 0
 		GameState.stats_changed.emit()
 		parts.append("heat cleared")
+	if _session.enemy_id == "r10t":
+		GameState.r10t_beaten = true
 	GameState.save_game()
 	_session._log("> spoils: %s" % (", ".join(parts) if not parts.is_empty() else "nothing of value"))
 

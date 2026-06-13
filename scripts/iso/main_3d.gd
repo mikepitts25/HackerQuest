@@ -50,6 +50,7 @@ func _ready() -> void:
 	GameState.stats_changed.connect(_update_daylight)
 	GameState.stats_changed.connect(_check_morning_news)
 	_news_day = GameState.day
+	_enc_rng.randomize()
 	go_to("home", "start")
 	_update_daylight()
 	_announce_daily_mod()
@@ -109,6 +110,7 @@ func go_to(district_id: String, spawn_id: String) -> void:
 	player.global_position = district.spawn_point(spawn_id)
 	player.reset_proximity()
 	GameState.touch_vector = Vector2.ZERO
+	_maybe_encounter(district_id)
 
 
 func do_sleep() -> void:
@@ -129,10 +131,62 @@ func open_shop() -> void:
 	shop.open()
 
 
-# Drop into a turn-based fight against a GameData.ENEMIES id (G6). Encounter
-# triggers that call this land in phase 3; for now it's the public entry point.
+# Drop into a turn-based fight against a GameData.ENEMIES id (G6).
 func start_combat(enemy_id: String) -> void:
 	combat.start(enemy_id)
+
+
+# --- street encounters (G6 phase 3) -------------------------------------------
+
+const NO_ENCOUNTER_DISTRICTS := ["home"]
+const ENCOUNTER_COOLDOWN := 2  # safe travels after any fight
+
+var _enc_rng := RandomNumberGenerator.new()
+var _travels_since_combat := 99  # high so the first trip out can spring one
+
+
+# Roll for an ambush on entering a district. Gated: not your apartment, not
+# mid-trace, not while a modal's up, and a few safe travels since the last
+# fight. Deferred a frame so the district finishes building and the player is
+# placed before the panel opens.
+func _maybe_encounter(district_id: String) -> void:
+	_travels_since_combat += 1
+	if district_id in NO_ENCOUNTER_DISTRICTS or GameState.trace_active or GameState.is_ui_locked():
+		return
+	if _travels_since_combat < ENCOUNTER_COOLDOWN:
+		return
+	var enemy_id := roll_encounter(
+		GameState.status_index(), GameState.heat, GameState.r10t_beaten,
+		GameState.combat_stats().attack, _enc_rng)
+	if enemy_id == "":
+		return
+	_travels_since_combat = 0
+	await get_tree().process_frame
+	if GameState.is_ui_locked():  # a dialog/modal opened in the gap — don't stack
+		return
+	if enemy_id == "r10t":
+		_on_toast("// UNKNOWN SIGNAL converging on your position...", GameState.COL_BAD)
+	else:
+		_on_toast("AMBUSH — someone's been waiting for you.", GameState.COL_BAD)
+	start_combat(enemy_id)
+
+
+# Pure encounter decision (no node/GameState deps, so it's unit-testable).
+# Returns a GameData.ENEMIES id, or "" for no fight.
+static func roll_encounter(status_idx: int, heat: int, r10t_beaten: bool, attack: int, rng: RandomNumberGenerator) -> String:
+	if attack < 3 or status_idx < 1:
+		return ""  # no real offense, or too green to be worth ambushing
+	# R10T: a rare, once-per-game boss once you're a name (Black Hat+).
+	if status_idx >= 3 and not r10t_beaten and rng.randf() < 0.07:
+		return "r10t"
+	var chance := 0.10 + 0.20 * (heat / 100.0)  # heat makes the street meaner
+	if rng.randf() > chance:
+		return ""
+	var pool := ["script_kid"]
+	if status_idx >= 2:  # the tougher runner shows up once you're climbing
+		pool.append("street_hacker")
+		pool.append("street_hacker")
+	return pool[rng.randi() % pool.size()]
 
 
 func show_jobs(board: String = "plaza") -> void:
