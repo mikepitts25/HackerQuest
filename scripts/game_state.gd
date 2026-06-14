@@ -40,6 +40,7 @@ const PERSISTED := [
 	"active_contract", "completed_contracts", "owned_cosmetics", "equipped", "active_jobs",
 	"mastery", "favors_done", "goods", "handle", "skin_tone", "background",
 	"scrap_bounty_done", "owned_gear", "gear", "r10t_beaten", "owned_furniture",
+	"music_vol", "sfx_vol",
 ]
 
 # True until a save is loaded; lets the main scene pick intro vs "welcome back".
@@ -112,6 +113,10 @@ var known_networks: Array = []
 # Darknet contracts: one active bounty at a time, plus a record of finished ones.
 var active_contract := ""
 var completed_contracts: Array = []
+
+# Audio volumes (0..1), persisted; applied by the Audio autoload.
+var music_vol := 0.8
+var sfx_vol := 0.9
 
 # Field gigs you've accepted from the job board (up to MAX_ACTIVE_JOBS). Each is
 # a GameData.JOBS id; you complete it at a marker in its target district.

@@ -26,6 +26,7 @@ func _ready() -> void:
 	_music = AudioStreamPlayer.new()
 	_music.bus = "Music"
 	add_child(_music)
+	apply_volumes()
 
 	# Centralized event SFX, so gameplay code stays clean of audio calls.
 	GameState.busted.connect(func() -> void: sfx("bust"))
@@ -71,12 +72,14 @@ func music(track: String) -> void:
 	_music.play()
 
 
-func set_music_volume_db(db: float) -> void:
-	AudioServer.set_bus_volume_db(AudioServer.get_bus_index("Music"), db)
+# Push GameState's saved 0..1 volumes onto the buses (call after load too).
+func apply_volumes() -> void:
+	AudioServer.set_bus_volume_db(AudioServer.get_bus_index("Music"), _vol_db(GameState.music_vol))
+	AudioServer.set_bus_volume_db(AudioServer.get_bus_index("SFX"), _vol_db(GameState.sfx_vol))
 
 
-func set_sfx_volume_db(db: float) -> void:
-	AudioServer.set_bus_volume_db(AudioServer.get_bus_index("SFX"), db)
+func _vol_db(v: float) -> float:
+	return -80.0 if v <= 0.01 else linear_to_db(v)
 
 
 func _load(path: String) -> AudioStream:

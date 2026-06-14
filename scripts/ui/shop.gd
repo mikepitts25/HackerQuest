@@ -4,6 +4,8 @@ extends Panel
 
 var _rows_box: VBoxContainer
 var _cash_label: Label
+var _cur: VBoxContainer        # the section currently being filled
+var _collapsed := {}           # section title -> collapsed?  (persists per session)
 
 
 func _ready() -> void:
@@ -88,54 +90,27 @@ func _refresh() -> void:
 		_rows_box.remove_child(child)
 		child.queue_free()
 
-	_section_header("UPGRADES")
+	_begin_section("UPGRADES", GameData.UPGRADES.size())
 	for id in GameData.UPGRADES:
 		var u: Dictionary = GameData.UPGRADES[id]
-		var row_panel := PanelContainer.new()
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color(1, 1, 1, 0.05)
-		style.set_content_margin_all(12)
-		style.set_corner_radius_all(8)
-		row_panel.add_theme_stylebox_override("panel", style)
-		_rows_box.add_child(row_panel)
-
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 12)
-		row_panel.add_child(row)
-
-		var info := VBoxContainer.new()
-		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(info)
-
-		var name_label := Label.new()
-		name_label.text = u.name
-		name_label.add_theme_font_size_override("font_size", 19)
-		info.add_child(name_label)
-
-		var desc_label := Label.new()
-		desc_label.text = u.desc
-		desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		desc_label.add_theme_font_size_override("font_size", 14)
-		desc_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
-		info.add_child(desc_label)
-
-		var buy := Button.new()
-		buy.focus_mode = Control.FOCUS_NONE
-		buy.custom_minimum_size = Vector2(130, 60)
+		var ud: String = u.desc
+		var ubtn: String
+		var udis := false
+		var uop := Callable()
 		if GameState.owned(id):
-			buy.text = "OWNED"
-			buy.disabled = true
+			ubtn = "OWNED"
+			udis = true
 		elif u.req != "" and not GameState.owned(u.req):
-			buy.text = "LOCKED"
-			buy.disabled = true
-			desc_label.text += "  (requires %s)" % GameData.UPGRADES[u.req]["name"]
+			ubtn = "LOCKED"
+			udis = true
+			ud += "  (requires %s)" % GameData.UPGRADES[u.req]["name"]
 		else:
-			buy.text = "$%d" % u.price
-			buy.disabled = GameState.cash < u.price
-			buy.pressed.connect(func() -> void: GameState.buy_upgrade(id))
-		row.add_child(buy)
+			ubtn = "$%d" % u.price
+			udis = GameState.cash < u.price
+			uop = func() -> void: GameState.buy_upgrade(id)
+		_shop_row(u.name, ud, ubtn, udis, uop, "cash")
 
-	_section_header("GEAR — rig · firewall · implant")
+	_begin_section("GEAR — rig · firewall · implant", GameData.GEAR.size())
 	for gid in GameData.GEAR:
 		var g: Dictionary = GameData.GEAR[gid]
 		var stat := ""
@@ -153,15 +128,15 @@ func _refresh() -> void:
 			gd += "  (needs %s)" % GameData.STATUS_RANKS[g.status_req]["title"]
 		_shop_row(g.name, gd, gbtn, gdis, _on_gear_pressed.bind(gid))
 
-	_section_header("CONSUMABLES — keep going")
+	_begin_section("CONSUMABLES — keep going", GameData.CONSUMABLES.size())
 	for cid in GameData.CONSUMABLES:
 		var c: Dictionary = GameData.CONSUMABLES[cid]
 		var have: int = GameState.inventory.get(cid, 0)
 		var name_text: String = c.name + ("  (have %d)" % have if have > 0 else "")
 		_shop_row(name_text, c.desc, "$%d" % c.price, GameState.cash < c.price,
-				func() -> void: GameState.buy_consumable(cid))
+				func() -> void: GameState.buy_consumable(cid), "cash")
 
-	_section_header("STYLE — dress the part")
+	_begin_section("STYLE — dress the part", GameData.COSMETICS.size())
 	for cid in GameData.COSMETICS:
 		var item: Dictionary = GameData.COSMETICS[cid]
 		var status_req: int = item.get("status_req", 0)
@@ -188,13 +163,13 @@ func _refresh() -> void:
 	# Sell loot — junk items only (consumables are bought/used, not sold here).
 	var junk: Array = GameState.inventory.keys().filter(func(k): return GameData.ITEMS.has(k))
 	if not junk.is_empty():
-		_section_header("YOUR LOOT — sell for cash")
+		_begin_section("YOUR LOOT — sell for cash", junk.size())
 		for item_id in junk:
 			var item: Dictionary = GameData.ITEMS[item_id]
 			var price := int(round(item.price * GameState.hustle_mult()))
 			_shop_row("%s  ×%d" % [item.name, GameState.inventory[item_id]], "",
 					"SELL  $%d" % price, false,
-					func() -> void: GameState.sell_item(item_id))
+					func() -> void: GameState.sell_item(item_id), "cash")
 
 
 # Reusable shop row: name + optional description, action button on the right.
@@ -206,14 +181,14 @@ func _on_gear_pressed(id: String) -> void:
 	_refresh()
 
 
-func _shop_row(name_text: String, desc_text: String, btn_text: String, disabled: bool, on_press: Callable) -> void:
+func _shop_row(name_text: String, desc_text: String, btn_text: String, disabled: bool, on_press: Callable, sfx_name := "click") -> void:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(1, 1, 1, 0.05)
 	style.set_content_margin_all(12)
 	style.set_corner_radius_all(8)
 	panel.add_theme_stylebox_override("panel", style)
-	_rows_box.add_child(panel)
+	_cur.add_child(panel)
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
@@ -240,13 +215,38 @@ func _shop_row(name_text: String, desc_text: String, btn_text: String, disabled:
 	btn.custom_minimum_size = Vector2(150, 56)
 	btn.disabled = disabled
 	if not disabled and on_press.is_valid():
-		btn.pressed.connect(on_press)
+		btn.pressed.connect(func() -> void:
+			Audio.sfx(sfx_name)
+			on_press.call())
 	row.add_child(btn)
 
 
-func _section_header(text: String) -> void:
-	var header := Label.new()
-	header.text = text
-	header.add_theme_font_size_override("font_size", 15)
+# A tappable, collapsible category header. Rows added after it (via _shop_row)
+# land in this section's box and hide/show with it. Collapsed state persists for
+# the session; everything starts collapsed except UPGRADES.
+func _begin_section(title: String, count: int) -> void:
+	var collapsed: bool = _collapsed.get(title, title != "UPGRADES")
+	var header := Button.new()
+	header.text = "%s  %s   [%d]" % ["▾" if not collapsed else "▸", title, count]
+	header.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	header.focus_mode = Control.FOCUS_NONE
+	header.custom_minimum_size = Vector2(0, 44)
+	header.add_theme_font_size_override("font_size", 16)
 	header.add_theme_color_override("font_color", Color("7ee787"))
+	var hs := StyleBoxFlat.new()
+	hs.bg_color = Color(0.49, 0.91, 0.53, 0.1)
+	hs.set_content_margin_all(8)
+	hs.set_corner_radius_all(6)
+	header.add_theme_stylebox_override("normal", hs)
+	header.add_theme_stylebox_override("hover", hs)
+	header.add_theme_stylebox_override("pressed", hs)
+	header.pressed.connect(func() -> void:
+		Audio.sfx("ui_open")
+		_collapsed[title] = not collapsed
+		_refresh())
 	_rows_box.add_child(header)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	box.visible = not collapsed
+	_rows_box.add_child(box)
+	_cur = box

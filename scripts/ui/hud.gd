@@ -30,6 +30,7 @@ var _bag_modal := {}
 var _wifi_modal := {}
 var _apt_modal := {}
 var _furnish_modal := {}
+var _settings_modal := {}
 var _contracts_modal := {}
 var _map_modal := {}
 var _phone_modal := {}
@@ -54,6 +55,7 @@ func _ready() -> void:
 	_wifi_modal = _make_modal("WIFI SNIFFER")
 	_apt_modal = _make_modal("VACANCIES")
 	_furnish_modal = _make_modal("FURNISH")
+	_settings_modal = _make_modal("SETTINGS")
 	_contracts_modal = _make_modal("CONTRACTS")
 	_favors_modal = _make_modal("COMMUNITY BOARD")
 	_goods_modal = _make_modal("GOODS EXCHANGE")
@@ -65,7 +67,7 @@ func _ready() -> void:
 	_city_map.custom_minimum_size = Vector2(560, 540)
 	_city_map.travel_requested.connect(_on_map_travel)
 	_map_modal.rows.add_child(_city_map)
-	_modals = [_jobs_modal, _skills_modal, _bag_modal, _wifi_modal, _apt_modal, _furnish_modal, _contracts_modal, _favors_modal, _goods_modal, _quests_modal, _loadout_modal, _phone_modal, _map_modal]
+	_modals = [_jobs_modal, _skills_modal, _bag_modal, _wifi_modal, _apt_modal, _furnish_modal, _settings_modal, _contracts_modal, _favors_modal, _goods_modal, _quests_modal, _loadout_modal, _phone_modal, _map_modal]
 	GameState.stats_changed.connect(_refresh_stats)
 	GameState.stats_changed.connect(_refresh_quest)  # active gigs surface here too
 	GameState.prompt_changed.connect(_on_prompt_changed)
@@ -178,6 +180,7 @@ func _build_stats_bar() -> void:
 	_chip_button(rail, "MAP", func() -> void: _open_map())
 	_chip_button(rail, "PHONE", func() -> void: _open_phone())
 	_wifi_btn = _chip_button(rail, "📶 WIFI", func() -> void: _open_wifi())
+	_chip_button(rail, "⚙ SETUP", func() -> void: show_settings())
 	_wifi_btn.visible = false
 
 
@@ -323,7 +326,9 @@ func _chip_button(parent: Control, text: String, on_press: Callable) -> Button:
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.custom_minimum_size = Vector2(0, 40)
 	btn.add_theme_font_size_override("font_size", 14)
-	btn.pressed.connect(on_press)
+	btn.pressed.connect(func() -> void:
+		Audio.sfx("click")
+		on_press.call())
 	parent.add_child(btn)
 	return btn
 
@@ -698,7 +703,9 @@ func _add_row(modal: Dictionary, name_text: String, desc_text: String, btn_text:
 		btn.custom_minimum_size = Vector2(150, 56)
 		btn.disabled = btn_disabled
 		if not btn_disabled and on_press.is_valid():
-			btn.pressed.connect(on_press)
+			btn.pressed.connect(func() -> void:
+				Audio.sfx("click")
+				on_press.call())
 		row.add_child(btn)
 
 
@@ -1142,6 +1149,63 @@ func show_furnish() -> void:
 func _buy_furniture(id: String) -> void:
 	GameState.buy_furniture(id)
 	_show_furnish_impl()
+
+
+# --- Settings (audio volume) -------------------------------------------------
+
+func show_settings() -> void:
+	_clear_rows(_settings_modal)
+	_settings_modal.title.text = "SETTINGS"
+	_add_volume_slider("Music", GameState.music_vol, func(v: float) -> void:
+		GameState.music_vol = v
+		Audio.apply_volumes()
+		GameState.save_game())
+	_add_volume_slider("Sound FX", GameState.sfx_vol, func(v: float) -> void:
+		GameState.sfx_vol = v
+		Audio.apply_volumes()
+		Audio.sfx("click")  # audible feedback while dragging
+		GameState.save_game())
+	_open_modal(_settings_modal)
+
+
+func _add_volume_slider(label_text: String, value: float, on_change: Callable) -> void:
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(1, 1, 1, 0.04)
+	style.set_content_margin_all(12)
+	style.set_corner_radius_all(10)
+	panel.add_theme_stylebox_override("panel", style)
+	_settings_modal.rows.add_child(panel)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	panel.add_child(row)
+
+	var name_label := Label.new()
+	name_label.text = label_text
+	name_label.custom_minimum_size = Vector2(110, 0)
+	name_label.add_theme_font_size_override("font_size", 18)
+	row.add_child(name_label)
+
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.05
+	slider.value = value
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size = Vector2(0, 44)
+	row.add_child(slider)
+
+	var pct := Label.new()
+	pct.text = "%d%%" % int(round(value * 100))
+	pct.custom_minimum_size = Vector2(56, 0)
+	pct.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	pct.add_theme_font_size_override("font_size", 16)
+	row.add_child(pct)
+
+	slider.value_changed.connect(func(v: float) -> void:
+		pct.text = "%d%%" % int(round(v * 100))
+		on_change.call(v))
 
 
 # --- Darknet contracts -------------------------------------------------------

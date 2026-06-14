@@ -53,6 +53,7 @@ func _ready() -> void:
 	GameState.stats_changed.connect(_check_morning_news)
 	_news_day = GameState.day
 	_enc_rng.randomize()
+	Audio.apply_volumes()  # a loaded save may carry custom volumes
 	go_to("home", "start")
 	_update_daylight()
 	_announce_daily_mod()
