@@ -620,6 +620,7 @@ func _open_modal(modal: Dictionary) -> void:
 		if m != modal and not m.is_empty():
 			m.root.visible = false
 	modal.root.visible = true
+	Audio.sfx("ui_open")
 	# CRT power-on stutter.
 	modal.root.modulate.a = 0.0
 	var fl: Tween = modal.root.create_tween()

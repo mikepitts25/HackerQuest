@@ -221,6 +221,7 @@ func _render_actions(state: String) -> void:
 # --- player actions -----------------------------------------------------------
 
 func _on_exploit() -> void:
+	Audio.sfx("hit")
 	_session.player_exploit()
 	_post_move()
 
@@ -255,6 +256,7 @@ func _post_move() -> void:
 	if _session.outcome == _session.ONGOING:
 		_render_actions("choose")
 	else:
+		Audio.sfx("win" if _session.outcome == _session.WIN else "lose")
 		_apply_outcome()
 		_render()  # loot/penalty lines were appended to the log
 		_render_actions("done")

@@ -245,8 +245,14 @@ chase and fight you, gear with stats, way more to do. Build order:
 ## 🧱 Tech / architecture
 
 - [ ] **Multiple save slots** + an in-game settings menu (audio, window mode).
-- [ ] **Audio** — there's currently no sound. Add SFX (keypresses, payouts,
-      bust) and ambient music per district.
+- [~] **Audio** — system + hooks built (`Audio` autoload, Music/SFX buses,
+      pooled SFX players; missing files no-op silently). Hooked: per-district +
+      title music; SFX on hack ok/fail, combat hit/win/lose, bust, trace
+      alarm/escape, sleep, gig, level-up, UI open. Assets generated via
+      `tools/gen_audio.sh` (ElevenLabs sound-generation + music APIs) into
+      `assets/audio/{sfx,music}/`. **Pending: run the generator with an
+      ELEVENLABS_API_KEY to populate the mp3s.** Then: volume sliders in a
+      settings menu.
 - [ ] **Android export** test (project is mobile-configured; touch works).
 - [ ] **Save versioning/migration** — `SAVE_VERSION` exists in `game_state.gd`
       but no migration path yet.

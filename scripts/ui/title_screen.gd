@@ -12,6 +12,7 @@ var _confirm_wipe := false
 
 func _ready() -> void:
 	theme = UITheme.theme()
+	Audio.music("title")
 	_build()
 
 

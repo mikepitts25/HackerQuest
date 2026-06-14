@@ -311,6 +311,7 @@ func _cmd_exploit(arg: String) -> void:
 	GameState.drain_energy(EXPLOIT_ENERGY)
 	_say("running exploit against %s ..." % arg, C_DIM)
 	if randf() < _chance(t):
+		Audio.sfx("hack_ok")
 		var payout := randi_range(t.payout_min, t.payout_max)
 		GameState.exploited[arg] = true
 		GameState.add_cash(payout)
@@ -323,6 +324,7 @@ func _cmd_exploit(arg: String) -> void:
 		if not GameState.botted.has(arg):
 			_say(_link("bot", arg, "▶ tap to INSTALL_BOT", C_YEL))
 	else:
+		Audio.sfx("hack_fail")
 		var fail_heat := GameState.apply_failed_hack_heat(t.heat)
 		if GameState.trace_active:
 			_say("ACCESS DENIED — TRACE LOCKED  (HEAT MAX, -%d CPU, -%d Energy)" % [t.cpu_cost, EXPLOIT_ENERGY], C_RED)

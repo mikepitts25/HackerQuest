@@ -15,6 +15,7 @@ signal cosmetics_changed
 signal trace_started(reason: String, seconds: float)
 signal trace_cleared(escaped: bool)
 signal jobs_changed  # active field gigs added/completed — districts re-mark
+signal leveled_up    # hit a new level (Audio plays the level-up sting)
 
 const COL_GOOD := Color("7ee787")
 const COL_BAD := Color("ff6b6b")
@@ -614,6 +615,7 @@ func add_xp(amount: int) -> void:
 		if has_computer:
 			cpu = max_cpu
 		notify("LEVEL UP! Now level %d (+1 skill point, fully rested)" % level, COL_GOOD)
+		leveled_up.emit()
 	stats_changed.emit()
 
 

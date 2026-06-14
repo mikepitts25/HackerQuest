@@ -116,6 +116,7 @@ func go_to(district_id: String, spawn_id: String) -> void:
 	player.global_position = district.spawn_point(spawn_id)
 	player.reset_proximity()
 	GameState.touch_vector = Vector2.ZERO
+	Audio.music(DISTRICT_MUSIC.get(district_id, "city"))
 	_maybe_encounter(district_id)
 
 
@@ -146,6 +147,12 @@ func start_combat(enemy_id: String) -> void:
 
 const NO_ENCOUNTER_DISTRICTS := ["home"]
 const ENCOUNTER_COOLDOWN := 2  # safe travels after any fight
+
+# Background music per district (track files in assets/audio/music/).
+const DISTRICT_MUSIC := {
+	"home": "city", "plaza": "city", "market": "city", "underpass": "city",
+	"corp_row": "corp", "darknet": "darknet", "drowned_quarter": "drowned",
+}
 
 var _enc_rng := RandomNumberGenerator.new()
 var _travels_since_combat := 99  # high so the first trip out can spring one
