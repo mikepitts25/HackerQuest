@@ -350,6 +350,7 @@ func _cmd_install_bot(arg: String) -> void:
 		_say("not enough CPU (1 needed). sleep to recharge.", C_RED)
 		return
 	GameState.spend_cpu(1)
+	GameState.botted[arg] = true  # permanent — survives sleep, blocks re-botting
 	GameState.botnet_size += t.botnet_value
 	GameState.add_heat(2)
 	GameState.add_xp(8)
