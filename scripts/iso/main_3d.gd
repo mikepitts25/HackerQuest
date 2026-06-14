@@ -105,6 +105,8 @@ func go_to(district_id: String, spawn_id: String) -> void:
 	var escaped_trace := GameState.trace_active and current_district_id != "" and district_id != current_district_id
 	if escaped_trace:
 		GameState.escape_trace()
+	if current_district_id != "" and current_district_id != district_id:
+		Audio.sfx("travel")
 	for child in world_container.get_children():
 		world_container.remove_child(child)
 		child.queue_free()
@@ -270,12 +272,16 @@ func _update_daylight() -> void:
 # Screen-space toast feed — the 3D stand-in for the 2D player's floating
 # text (player.gd renders GameState.toast in world space; here it's UI).
 func _build_toast_feed() -> void:
+	# Lower-middle of the screen — clear of the HUD top bar and the bottom
+	# controls. Newest toast sits at the bottom; older ones stack upward and fade.
 	_toasts = VBoxContainer.new()
-	_toasts.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_toasts.offset_top = 110.0
-	_toasts.offset_bottom = 560.0
+	_toasts.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_toasts.offset_top = -520.0
+	_toasts.offset_bottom = -250.0
 	_toasts.offset_left = -330.0
 	_toasts.offset_right = 330.0
+	_toasts.alignment = BoxContainer.ALIGNMENT_END
+	_toasts.add_theme_constant_override("separation", 6)
 	_toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	$UILayer.add_child(_toasts)
 
@@ -293,6 +299,11 @@ func _on_toast(text: String, color: Color) -> void:
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_toasts.add_child(label)
+	# Cap the stack so a burst of rewards can't pile up unreadably.
+	while _toasts.get_child_count() > 5:
+		var oldest := _toasts.get_child(0)
+		_toasts.remove_child(oldest)
+		oldest.queue_free()
 	var fade := label.create_tween()
 	fade.tween_interval(2.6)
 	fade.tween_property(label, "modulate:a", 0.0, 0.6)

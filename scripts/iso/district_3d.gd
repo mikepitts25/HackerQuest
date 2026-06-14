@@ -708,6 +708,7 @@ func _search_trash(id: String, pile: Area3D) -> void:
 		return
 	if not GameState.use_energy(1):
 		return
+	Audio.sfx("search")
 	GameState.trash_searched[id] = true
 	var t: Dictionary = GameData.trash_table(main.current_district_id)
 	var item_id: String = t.pool.pick_random()

@@ -33,6 +33,8 @@ SFX=(
   "levelup|1.6|bright ascending arpeggio level up flourish, synth"
   "cash|0.8|digital credits payout, pleasant cha-ching cash register, retro"
   "click|0.5|crisp short UI button tap blip, holographic interface"
+  "search|1.3|rummaging through a pile of trash and e-waste, plastic and metal clatter, digging"
+  "travel|1.2|quick digital whoosh transition, fast travel across the city, synth sweep"
 )
 
 # name|length_ms|prompt   (instrumental loops)
