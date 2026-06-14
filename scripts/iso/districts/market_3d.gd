@@ -52,7 +52,7 @@ func _build() -> void:
 	_mark("from_corp", Vector2(18.2, 10))
 
 	# Tenements ringing the market — chunk-kit skyline.
-	_skyline_row(Vector2(3.5, -2), Vector2(3.8, 0), 5, ["shop", "tower"])
+	_skyline_row(Vector2(3.5, -3.5), Vector2(3.8, 0), 5, ["shop", "tower"])  # set back for the ring road
 
 	# Delivery vans working the market loop (G7) — warmer, a touch faster.
 	_ring_road(-1.1, 4, 3.3, Color(0.6, 0.45, 0.3))

@@ -35,8 +35,8 @@ func _build() -> void:
 	_mark("from_underpass", Vector2(1.9, 7.5))
 
 	# Skyline ringing the plaza — one call per edge via the chunk kit.
-	_skyline_row(Vector2(3.5, -2), Vector2(3.6, 0), 5, ["tower", "shop"])        # north
-	_skyline_row(Vector2(24, 3.5), Vector2(0, 3.8), 3, ["shop", "tower"], 90)    # east
+	_skyline_row(Vector2(3.5, -3.5), Vector2(3.6, 0), 5, ["tower", "shop"])      # north (set back for the ring road)
+	_skyline_row(Vector2(25.5, 3.5), Vector2(0, 3.8), 3, ["shop", "tower"], 90)  # east
 
 	# Civic traffic circling the plaza (G7).
 	_ring_road(-1.1, 4, 3.0, Color(0.42, 0.48, 0.6))

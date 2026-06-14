@@ -36,7 +36,7 @@ func _build() -> void:
 	_mark("from_darknet", Vector2(18.2, 7))
 
 	# Glass towers ringing the row — chunk-kit skyline.
-	_skyline_row(Vector2(3.5, -2), Vector2(3.8, 0), 5, ["tower"])
+	_skyline_row(Vector2(3.5, -3.5), Vector2(3.8, 0), 5, ["tower"])  # set back for the ring road
 
 	# Sleek corporate sedans gliding the row (G7) — dark, cyan-lit, quick.
 	_ring_road(-1.1, 3, 3.6, Color(0.16, 0.2, 0.26))

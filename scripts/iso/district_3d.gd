@@ -75,6 +75,7 @@ var traffic_lanes: Array = []
 func build(p_main: Node) -> void:
 	main = p_main
 	_build()
+	_ground_apron()
 	_add_heat_patrol()
 	_add_police_presence()
 	_add_botnet_glow()
@@ -102,6 +103,22 @@ func _mark(id: String, pos: Vector2) -> void:
 
 func _ground(color := GROUND_COLOR) -> void:
 	_slab(Vector2.ZERO, area_size, 0.12, -0.06, color)
+
+
+# A large dark asphalt slab extending past the walls, sitting just below the
+# base ground. Gives the ring-road traffic an actual surface to drive on (was
+# void) and removes the hard ground edge at the district boundary.
+func _ground_apron(margin := 6.0) -> void:
+	var m := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(area_size.x + margin * 2.0, 0.1, area_size.y + margin * 2.0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.04, 0.045, 0.058)
+	mat.roughness = 1.0
+	bm.material = mat
+	m.mesh = bm
+	m.position = Vector3(area_size.x / 2.0, -0.1, area_size.y / 2.0)  # top -0.05, under base ground
+	add_child(m)
 
 
 # Thin floor patch (pavers, room floors). pos is the top-left corner.
