@@ -652,7 +652,10 @@ func _skyline_row(start: Vector2, step: Vector2, n: int, kinds: Array, yaw := 0.
 
 # A back-street strip: darker pavement, walled on the far side. Pure layout.
 func _back_street(pos: Vector2, size: Vector2) -> void:
-	_patch(pos, size, Color(0.06, 0.066, 0.082))
+	# Sits a hair above the floor patches (top ~0.05 vs 0.02) so where it overlaps
+	# them it renders cleanly on top instead of z-fighting (the flicker you'd see
+	# moving the camera over the plaza promenade).
+	_slab(pos, size, 0.04, 0.03, Color(0.06, 0.066, 0.082))
 	_wall(pos.x, pos.y - 0.2, size.x, 0.2)
 
 
