@@ -83,6 +83,7 @@ func _announce_daily_mod() -> void:
 			"Step 1: cash. Head out to the PLAZA — there's a job board and people who can help.",
 			"The MARKET past the plaza scraps e-waste and sells a (mostly working) laptop for $100.",
 		])
+		GameState.is_new_game = false  # intro shows once, not every morning
 	else:
 		hud.show_dialog([
 			"Welcome back. Day %d, $%d in your pocket." % [GameState.day, GameState.cash],
