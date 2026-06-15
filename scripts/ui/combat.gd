@@ -28,6 +28,13 @@ var _player_bar: ProgressBar
 var _player_bar_label: Label
 var _log: RichTextLabel
 var _actions: HBoxContainer
+var _boss_burst: Control
+var _boss_title: Label
+var _boss_subtitle: Label
+var _boss_flash: ColorRect
+# District track stashed while a boss theme plays, restored when the fight ends.
+var _prev_music := ""
+var _boss_audio := false
 
 
 func _ready() -> void:
@@ -45,8 +52,27 @@ func start(enemy_id: String) -> void:
 	_prev_enemy_hp = _session.enemy_hp
 	visible = true
 	GameState.lock_ui()
+	_start_boss_audio()
 	_render()
 	_render_actions("choose")
+
+
+# R10T and his crew get a signature arrival sting and swap the district track
+# for the rival boss theme; the previous track is restored when the fight ends.
+# Ordinary ambushes keep the district music playing under the panel.
+func _start_boss_audio() -> void:
+	_boss_audio = false
+	var sting := ""
+	if _session.enemy_id == "r10t":
+		sting = "riot_sting"
+	elif _session.enemy.get("crew", "") == "r10t":
+		sting = "crew_sting"
+	if sting == "":
+		return
+	_prev_music = Audio.current_track()
+	_boss_audio = true
+	Audio.sfx(sting)
+	Audio.music("riot_boss")
 
 
 func _input(event: InputEvent) -> void:
@@ -114,6 +140,8 @@ func _build_ui() -> void:
 	_actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_child(_actions)
 
+	_build_boss_burst()
+
 
 func _label(text: String, size: int, color: Color) -> Label:
 	var l := Label.new()
@@ -146,6 +174,122 @@ func _make_button(text: String, color: Color, action: Callable) -> Button:
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.pressed.connect(action)
 	return b
+
+
+func _build_boss_burst() -> void:
+	_boss_burst = Control.new()
+	_boss_burst.name = "BossBurstOverlay"
+	_boss_burst.visible = false
+	_boss_burst.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_boss_burst)
+	_boss_burst.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+	_boss_flash = ColorRect.new()
+	_boss_flash.color = Color(1, 0.12, 0.18, 0.0)
+	_boss_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boss_burst.add_child(_boss_flash)
+	_boss_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+	var center := CenterContainer.new()
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boss_burst.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+	var stack := VBoxContainer.new()
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.alignment = BoxContainer.ALIGNMENT_CENTER
+	stack.add_theme_constant_override("separation", 6)
+	center.add_child(stack)
+
+	_boss_title = _label("", 50, C_RED)
+	_boss_title.name = "BossBurstTitle"
+	_boss_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_boss_title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	_boss_title.add_theme_constant_override("outline_size", 10)
+	stack.add_child(_boss_title)
+
+	_boss_subtitle = _label("", 18, C_YEL)
+	_boss_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_boss_subtitle.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	_boss_subtitle.add_theme_constant_override("outline_size", 6)
+	stack.add_child(_boss_subtitle)
+
+
+func _show_boss_burst(title: String, subtitle: String) -> void:
+	_boss_burst.visible = true
+	_boss_burst.modulate = Color.WHITE
+	_boss_title.text = title
+	_boss_subtitle.text = subtitle
+	_boss_title.scale = Vector2(0.35, 0.35)
+	_boss_subtitle.modulate.a = 0.0
+	_boss_flash.color = Color(1, 0.12, 0.18, 0.92)
+	_clear_boss_effect_nodes()
+	_spawn_boss_rings()
+	_spawn_boss_sparks()
+
+	var title_t := create_tween().set_parallel(true)
+	title_t.tween_property(_boss_title, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	title_t.tween_property(_boss_subtitle, "modulate:a", 1.0, 0.28).set_delay(0.12)
+	title_t.tween_property(_boss_flash, "color:a", 0.0, 0.55)
+	title_t.tween_property(self, "position", Vector2(16, 0), 0.035)
+	title_t.chain().tween_property(self, "position", Vector2(-14, 0), 0.035)
+	title_t.chain().tween_property(self, "position", Vector2(10, 0), 0.035)
+	title_t.chain().tween_property(self, "position", Vector2.ZERO, 0.05)
+
+
+func _clear_boss_effect_nodes() -> void:
+	for child in _boss_burst.get_children():
+		if child.get_meta("boss_fx", false):
+			child.queue_free()
+
+
+func _spawn_boss_rings() -> void:
+	var colors := [Color("ff6b6b"), Color("ffd166"), Color("7adfff")]
+	for i in colors.size():
+		var ring := Panel.new()
+		ring.set_meta("boss_fx", true)
+		ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0, 0, 0, 0)
+		style.set_border_width_all(4)
+		style.border_color = Color(colors[i], 0.9)
+		style.set_corner_radius_all(220)
+		ring.add_theme_stylebox_override("panel", style)
+		ring.custom_minimum_size = Vector2(120, 120)
+		_boss_burst.add_child(ring)
+		ring.anchor_left = 0.5
+		ring.anchor_right = 0.5
+		ring.anchor_top = 0.5
+		ring.anchor_bottom = 0.5
+		ring.offset_left = -60
+		ring.offset_right = 60
+		ring.offset_top = -60
+		ring.offset_bottom = 60
+		ring.scale = Vector2(0.15, 0.15)
+		ring.pivot_offset = Vector2(60, 60)
+		var tw := create_tween().set_parallel(true)
+		tw.tween_property(ring, "scale", Vector2(6.0 + i * 1.35, 6.0 + i * 1.35), 0.85 + i * 0.12).set_delay(i * 0.08)
+		tw.tween_property(ring, "modulate:a", 0.0, 0.75 + i * 0.12).set_delay(0.12 + i * 0.08)
+		tw.chain().tween_callback(ring.queue_free)
+
+
+func _spawn_boss_sparks() -> void:
+	var center := get_viewport_rect().size * 0.5
+	for i in 28:
+		var spark := ColorRect.new()
+		spark.set_meta("boss_fx", true)
+		spark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		spark.color = [C_RED, C_YEL, C_CYAN][i % 3]
+		spark.size = Vector2(10 + (i % 4) * 4, 3)
+		_boss_burst.add_child(spark)
+		spark.position = center
+		spark.rotation = TAU * float(i) / 28.0
+		var dir := Vector2.RIGHT.rotated(spark.rotation)
+		var dist := 180.0 + float((i * 37) % 220)
+		var tw := create_tween().set_parallel(true)
+		tw.tween_property(spark, "position", center + dir * dist, 0.65).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tw.tween_property(spark, "modulate:a", 0.0, 0.55).set_delay(0.12)
+		tw.chain().tween_callback(spark.queue_free)
 
 
 # --- rendering ----------------------------------------------------------------
@@ -269,6 +413,12 @@ func _on_continue() -> void:
 	var won: bool = _session.outcome == _session.WIN
 	visible = false
 	GameState.unlock_ui()
+	# Drop the boss theme and bring the district track back (only boss fights
+	# swapped it; ordinary ambushes left the district music playing).
+	if _boss_audio:
+		Audio.music(_prev_music)
+		_boss_audio = false
+		_prev_music = ""
 	_session = null
 	if was_tracker and GameState.trace_active:
 		if won:
@@ -308,15 +458,28 @@ func _award_loot() -> void:
 	if rep > 0:
 		GameState.add_rep(rep)
 		parts.append("+%d REP" % rep)
-	if loot.has("gear") and not GameState.owned(loot.gear):
-		GameState.owned_gear.append(loot.gear)
-		parts.append("GEAR: %s" % GameData.GEAR[loot.gear].name)
+	if loot.has("gear"):
+		var gear_id: String = loot.gear
+		var fresh := GameState.grant_gear(gear_id)
+		parts.append("GEAR: %s%s" % [GameData.GEAR[gear_id].name, "" if fresh else " tuned"])
+	if loot.has("item"):
+		var item_id: String = loot.item
+		if GameState.inventory.get(item_id, 0) <= 0:
+			GameState.add_item(item_id)
+			parts.append("ITEM: %s" % GameData.ITEMS[item_id].name)
 	if loot.get("heat_clear", false):
 		GameState.heat = 0
 		GameState.stats_changed.emit()
 		parts.append("heat cleared")
 	if _session.enemy_id == "r10t":
 		GameState.r10t_beaten = true
+		Audio.sfx("riot_down")
+		_session._log("> R10T's avatar detonates into corrupted light.")
+		_show_boss_burst("R10T DOWN", "rival process terminated")
+	elif _session.enemy.get("crew", "") == "r10t":
+		Audio.sfx("crew_down")
+		GameState.mark_crew_boss_defeated(_session.enemy_id)
+		_session._log("> %s drops out of R10T's channel. The crew just got quieter." % _session.enemy.name)
 	GameState.save_game()
 	_session._log("> spoils: %s" % (", ".join(parts) if not parts.is_empty() else "nothing of value"))
 

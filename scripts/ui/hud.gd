@@ -13,12 +13,18 @@ var _skills_btn: Button
 var _wifi_btn: Button
 var _xp_bar: ProgressBar  # thin ambient strip, no text
 var _bars := {}  # key -> {"bar": ProgressBar, "label": Label}
+var _chat_feed: PanelContainer
+var _chat_rows: VBoxContainer
 
 var _interact_btn: Button
+var _interact_label: Label
 
 var _dialog_panel: PanelContainer
 var _dialog_label: Label
+var _dialog_ok_btn: Button
+var _dialog_cancel_btn: Button
 var _dialog_queue: Array = []
+var _dialog_confirm_action := Callable()
 var _type_tween: Tween
 var _heat_tween: Tween
 var _trace_banner: PanelContainer
@@ -46,6 +52,7 @@ func _ready() -> void:
 	theme = UITheme.theme()
 	_add_scanlines()
 	_build_stats_bar()
+	_build_chat_feed()
 	_build_trace_banner()
 	_build_controls()
 	_build_dialog()
@@ -70,6 +77,7 @@ func _ready() -> void:
 	_modals = [_jobs_modal, _skills_modal, _bag_modal, _wifi_modal, _apt_modal, _furnish_modal, _settings_modal, _contracts_modal, _favors_modal, _goods_modal, _quests_modal, _loadout_modal, _phone_modal, _map_modal]
 	GameState.stats_changed.connect(_refresh_stats)
 	GameState.stats_changed.connect(_refresh_quest)  # active gigs surface here too
+	GameState.toast.connect(add_feed_message)
 	GameState.prompt_changed.connect(_on_prompt_changed)
 	GameState.quest_changed.connect(_refresh_quest)
 	_refresh_stats()
@@ -184,6 +192,51 @@ func _build_stats_bar() -> void:
 	_wifi_btn.visible = false
 
 
+func _build_chat_feed() -> void:
+	_chat_feed = PanelContainer.new()
+	_chat_feed.name = "ChatFeed"
+	_chat_feed.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(UITheme.INK, 0.62)
+	style.border_color = Color(UITheme.CYAN, 0.24)
+	style.border_width_left = 2
+	style.set_corner_radius_all(4)
+	style.set_content_margin_all(9)
+	_chat_feed.add_theme_stylebox_override("panel", style)
+	add_child(_chat_feed)
+	_chat_feed.anchor_left = 0.0
+	_chat_feed.anchor_right = 1.0
+	_chat_feed.anchor_top = 0.0
+	_chat_feed.anchor_bottom = 0.0
+	_chat_feed.offset_left = 12.0
+	_chat_feed.offset_right = -150.0
+	_chat_feed.offset_top = 158.0
+	_chat_feed.offset_bottom = 270.0
+
+	_chat_rows = VBoxContainer.new()
+	_chat_rows.add_theme_constant_override("separation", 3)
+	_chat_rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_chat_feed.add_child(_chat_rows)
+
+
+func add_feed_message(text: String, color: Color = GameState.COL_INFO) -> void:
+	if _chat_rows == null:
+		return
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_override("font", UITheme.mono_font())
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", color)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_chat_rows.add_child(label)
+	while _chat_rows.get_child_count() > 4:
+		var oldest := _chat_rows.get_child(0)
+		_chat_rows.remove_child(oldest)
+		oldest.queue_free()
+
+
 func _build_trace_banner() -> void:
 	_trace_banner = PanelContainer.new()
 	_trace_banner.visible = false
@@ -263,12 +316,12 @@ func _set_heat_pulse(on: bool) -> void:
 func _refresh_quest() -> void:
 	# An accepted gig is your most immediate objective — surface where to go.
 	if not GameState.active_jobs.is_empty():
-		var jid: String = GameState.active_jobs[0]
-		var job: Dictionary = GameData.JOBS[jid]
+		var job: Dictionary = GameState.active_jobs[0]
 		var more := ""
 		if GameState.active_jobs.size() > 1:
 			more = "  (+%d more)" % (GameState.active_jobs.size() - 1)
-		_quest_label.text = "◆ GIG: %s → %s%s" % [job.name, GameData.DISTRICTS[job.district]["name"], more]
+		_quest_label.text = "◆ GIG: %s %d/%d → %s%s" % [
+			job.name, job.step, job.steps_total, GameData.DISTRICTS[job.district]["name"], more]
 		return
 	_quest_label.text = "▸  " + GameState.current_quest_text()
 
@@ -353,9 +406,10 @@ func _build_controls() -> void:
 	joystick.offset_bottom = -50
 
 	_interact_btn = Button.new()
-	_interact_btn.text = "…"
+	_interact_btn.name = "ActionButton"
+	_interact_btn.text = ""
 	_interact_btn.disabled = true
-	_interact_btn.clip_text = true
+	_interact_btn.clip_text = false
 	_interact_btn.focus_mode = Control.FOCUS_NONE
 	_interact_btn.add_theme_font_size_override("font_size", 18)
 	# The world-verb button speaks cyan, not green — it's "what's in front of
@@ -389,10 +443,58 @@ func _build_controls() -> void:
 	_interact_btn.offset_bottom = -70
 	_interact_btn.pressed.connect(func() -> void: GameState.interact_requested.emit())
 
+	_interact_label = Label.new()
+	_interact_label.name = "ActionPromptLabel"
+	_interact_label.text = "…"
+	_interact_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_interact_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_interact_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_interact_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_interact_label.clip_text = true
+	_interact_label.add_theme_font_size_override("font_size", 17)
+	_interact_label.add_theme_color_override("font_color", Color(0.4, 0.45, 0.55, 0.6))
+	_interact_btn.add_child(_interact_label)
+	_interact_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_interact_label.offset_left = 10
+	_interact_label.offset_top = 8
+	_interact_label.offset_right = -10
+	_interact_label.offset_bottom = -8
+
+	# TEMP DEBUG: remove before production. Fast-forwards economy/status for endgame testing.
+	var god_btn := Button.new()
+	god_btn.name = "GodTestButton"
+	god_btn.text = "GOD TEST"
+	god_btn.focus_mode = Control.FOCUS_NONE
+	god_btn.custom_minimum_size = Vector2(170, 44)
+	god_btn.add_theme_font_size_override("font_size", 14)
+	var god_style := StyleBoxFlat.new()
+	god_style.bg_color = Color("3a1f10", 0.9)
+	god_style.set_corner_radius_all(4)
+	god_style.set_border_width_all(1)
+	god_style.border_color = Color(GameState.COL_WARN, 0.85)
+	god_style.set_content_margin_all(8)
+	god_btn.add_theme_stylebox_override("normal", god_style)
+	god_btn.add_theme_stylebox_override("hover", god_style)
+	god_btn.add_theme_color_override("font_color", GameState.COL_WARN)
+	add_child(god_btn)
+	god_btn.anchor_left = 1.0
+	god_btn.anchor_right = 1.0
+	god_btn.anchor_top = 1.0
+	god_btn.anchor_bottom = 1.0
+	god_btn.offset_left = -210
+	god_btn.offset_top = -286
+	god_btn.offset_right = -40
+	god_btn.offset_bottom = -242
+	god_btn.pressed.connect(func() -> void:
+		Audio.sfx("click")
+		GameState.grant_debug_god_mode())
+
 
 func _on_prompt_changed(text: String) -> void:
-	_interact_btn.text = text if text != "" else "…"
+	_interact_label.text = text if text != "" else "…"
 	_interact_btn.disabled = text == ""
+	_interact_label.add_theme_color_override("font_color",
+			Color(0.4, 0.45, 0.55, 0.6) if text == "" else UITheme.CYAN)
 
 
 func _process(_delta: float) -> void:
@@ -440,15 +542,43 @@ func _build_dialog() -> void:
 	_dialog_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(_dialog_label)
 
-	var ok := Button.new()
-	ok.text = "OK"
-	ok.focus_mode = Control.FOCUS_NONE
-	ok.custom_minimum_size = Vector2(0, 52)
-	ok.pressed.connect(_on_dialog_ok)
-	vbox.add_child(ok)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 10)
+	vbox.add_child(buttons)
+
+	_dialog_cancel_btn = Button.new()
+	_dialog_cancel_btn.text = "NO"
+	_dialog_cancel_btn.visible = false
+	_dialog_cancel_btn.focus_mode = Control.FOCUS_NONE
+	_dialog_cancel_btn.custom_minimum_size = Vector2(0, 52)
+	_dialog_cancel_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dialog_cancel_btn.pressed.connect(_on_dialog_cancel)
+	buttons.add_child(_dialog_cancel_btn)
+
+	_dialog_ok_btn = Button.new()
+	_dialog_ok_btn.text = "OK"
+	_dialog_ok_btn.focus_mode = Control.FOCUS_NONE
+	_dialog_ok_btn.custom_minimum_size = Vector2(0, 52)
+	_dialog_ok_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dialog_ok_btn.pressed.connect(_on_dialog_ok)
+	buttons.add_child(_dialog_ok_btn)
 
 
 func show_dialog(lines: Array) -> void:
+	_dialog_confirm_action = Callable()
+	_set_dialog_buttons(false)
+	for line in lines:
+		_dialog_queue.append(line)
+	if not _dialog_panel.visible:
+		_dialog_panel.visible = true
+		GameState.lock_ui()
+		_show_dialog_line(_dialog_queue.pop_front())
+
+
+func show_confirm_dialog(lines: Array, confirm_text: String, cancel_text: String, on_confirm: Callable) -> void:
+	_dialog_queue.clear()
+	_dialog_confirm_action = on_confirm
+	_set_dialog_buttons(true, confirm_text, cancel_text)
 	for line in lines:
 		_dialog_queue.append(line)
 	if not _dialog_panel.visible:
@@ -476,10 +606,33 @@ func _on_dialog_ok() -> void:
 		_dialog_label.visible_ratio = 1.0
 		return
 	if _dialog_queue.is_empty():
+		var action := _dialog_confirm_action
+		_dialog_confirm_action = Callable()
+		_set_dialog_buttons(false)
 		_dialog_panel.visible = false
 		GameState.unlock_ui()
+		if action.is_valid():
+			action.call()
 	else:
 		_show_dialog_line(_dialog_queue.pop_front())
+
+
+func _on_dialog_cancel() -> void:
+	if _type_tween and _type_tween.is_valid():
+		_type_tween.kill()
+	_dialog_confirm_action = Callable()
+	_dialog_queue.clear()
+	_set_dialog_buttons(false)
+	_dialog_panel.visible = false
+	GameState.unlock_ui()
+
+
+func _set_dialog_buttons(confirming: bool, confirm_text := "YES", cancel_text := "NO") -> void:
+	if _dialog_ok_btn == null or _dialog_cancel_btn == null:
+		return
+	_dialog_ok_btn.text = confirm_text if confirming else "OK"
+	_dialog_cancel_btn.text = cancel_text
+	_dialog_cancel_btn.visible = confirming
 
 
 # --- Shared modal helper -------------------------------------------------------
@@ -504,9 +657,12 @@ func _make_modal(title: String) -> Dictionary:
 
 	var holder := CenterContainer.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	center.add_child(holder)
 
 	var inner := PanelContainer.new()
+	inner.name = "ModalPanel"
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(UITheme.INK, 0.97)
 	style.set_content_margin_all(18)
@@ -535,11 +691,17 @@ func _make_modal(title: String) -> Dictionary:
 	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(rule)
 
+	var scroll := ScrollContainer.new()
+	scroll.name = "ModalScroll"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+
 	var rows := VBoxContainer.new()
 	rows.add_theme_constant_override("separation", 10)
-	vbox.add_child(rows)
+	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(rows)
 
-	var modal := {"root": root, "title": title_label, "rows": rows}
+	var modal := {"root": root, "inner": inner, "scroll": scroll, "title": title_label, "rows": rows, "fade": null}
 
 	# Tapping the dimmed area outside the panel closes the modal — a reliable
 	# escape on touch so a modal can never strand the player.
@@ -568,6 +730,7 @@ func _open_phone() -> void:
 	_clear_rows(_phone_modal)
 	for msg in Inbox.messages():
 		var panel := PanelContainer.new()
+		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var style := StyleBoxFlat.new()
 		style.bg_color = Color(1, 1, 1, 0.03)
 		style.set_corner_radius_all(3)
@@ -577,14 +740,17 @@ func _open_phone() -> void:
 		panel.add_theme_stylebox_override("panel", style)
 		var vb := VBoxContainer.new()
 		vb.add_theme_constant_override("separation", 2)
+		vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		panel.add_child(vb)
 		var who := Label.new()
 		who.text = msg.from
+		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		who.add_theme_font_size_override("font_size", 13)
 		who.add_theme_color_override("font_color", Color(msg.color))
 		vb.add_child(who)
 		var body := Label.new()
 		body.text = msg.text
+		body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		body.add_theme_font_size_override("font_size", 15)
 		vb.add_child(body)
@@ -610,6 +776,7 @@ func _any_modal_open() -> bool:
 
 func _open_modal(modal: Dictionary) -> void:
 	if modal.root.visible:
+		_fit_modal_to_viewport(modal)
 		return
 	# Don't stack a modal on a dialog (that double-locked the UI) — let the
 	# player finish reading it first.
@@ -624,11 +791,15 @@ func _open_modal(modal: Dictionary) -> void:
 	for m in _modals:
 		if m != modal and not m.is_empty():
 			m.root.visible = false
+	_fit_modal_to_viewport(modal)
 	modal.root.visible = true
 	Audio.sfx("ui_open")
 	# CRT power-on stutter.
+	if modal.fade is Tween and modal.fade.is_valid():
+		modal.fade.kill()
 	modal.root.modulate.a = 0.0
 	var fl: Tween = modal.root.create_tween()
+	modal.fade = fl
 	fl.tween_property(modal.root, "modulate:a", 1.0, 0.05)
 	fl.tween_property(modal.root, "modulate:a", 0.55, 0.04)
 	fl.tween_property(modal.root, "modulate:a", 1.0, 0.06)
@@ -639,8 +810,23 @@ func _open_modal(modal: Dictionary) -> void:
 func _close_modal(modal: Dictionary) -> void:
 	if not modal.root.visible:
 		return
+	if modal.fade is Tween and modal.fade.is_valid():
+		modal.fade.kill()
+	modal.root.modulate.a = 1.0
 	modal.root.visible = false
 	GameState.unlock_ui()
+
+
+func _fit_modal_to_viewport(modal: Dictionary) -> void:
+	var viewport := get_viewport_rect().size
+	var side_margin := 48.0
+	var vertical_margin := 64.0
+	var chrome_height := 132.0
+	var width := minf(620.0, maxf(280.0, viewport.x - side_margin))
+	var rows_height: float = modal.rows.get_combined_minimum_size().y
+	var max_rows_height := maxf(180.0, viewport.y - vertical_margin - chrome_height)
+	modal.inner.custom_minimum_size = Vector2(width, 0)
+	modal.scroll.custom_minimum_size = Vector2(0, minf(rows_height, max_rows_height))
 
 
 func close_blocking_ui() -> void:
@@ -658,6 +844,8 @@ func _dismiss_dialog() -> void:
 		_type_tween.kill()
 	_dialog_panel.visible = false
 	_dialog_queue.clear()
+	_dialog_confirm_action = Callable()
+	_set_dialog_buttons(false)
 	GameState.unlock_ui()
 
 
@@ -707,6 +895,8 @@ func _add_row(modal: Dictionary, name_text: String, desc_text: String, btn_text:
 				Audio.sfx("click")
 				on_press.call())
 		row.add_child(btn)
+	if modal.root.visible:
+		_fit_modal_to_viewport(modal)
 
 
 # --- Job board ------------------------------------------------------------------
@@ -890,14 +1080,17 @@ func _close_jobs() -> void:
 
 func _refresh_jobs() -> void:
 	var title := "GIG BOARD" if _jobs_board == "corp" else "JOB BOARD"
-	_jobs_modal.title.text = "%s   ($%d · gigs %d/%d)" % [
-		title, GameState.cash, GameState.active_jobs.size(), GameState.MAX_ACTIVE_JOBS]
+	_jobs_modal.title.text = "%s   ($%d · active %d)" % [
+		title, GameState.cash, GameState.active_jobs.size()]
 	_clear_rows(_jobs_modal)
 	# Active gigs up top with their destination, so you know where to go.
-	for jid in GameState.active_jobs:
-		var aj: Dictionary = GameData.JOBS[jid]
+	for active in GameState.active_jobs:
+		var aj: Dictionary = active
+		var cpu_text := "" if int(aj.get("cpu", 0)) <= 0 else " · -%d CPU/stop" % int(aj.cpu)
 		_add_row(_jobs_modal, "● " + aj.name,
-				"ACTIVE — go to %s and do the work (marked on the ground)." % GameData.DISTRICTS[aj.district]["name"],
+				"ACTIVE %d/%d — %s in %s. -%dE/stop%s. Final payout about $%d." % [
+					aj.step, aj.steps_total, aj.objective, GameData.DISTRICTS[aj.district]["name"],
+					aj.energy, cpu_text, aj.cash],
 				"", true, Callable())
 	# Today's board. R10T may have beaten you to one of them.
 	var gigs: Array = GameState.daily_gigs(_jobs_board)
@@ -919,8 +1112,9 @@ func _refresh_jobs() -> void:
 		var heat: int = job.get("heat", 0)
 		var success := int(round((1.0 - GameState.gig_risk(id)) * 100.0))
 		var status_req: int = job.get("status_req", 0)
-		var dname: String = GameData.DISTRICTS[job.district]["name"]
-		var desc: String = "%s   → %s · -%dE · ~$%d" % [job.desc, dname, job.energy, pay]
+		var cpu_hint := " + CPU" if job.get("archetype", "") in ["wifi", "heist", "recon"] and job.get("req_computer", false) else ""
+		var desc: String = "%s   → random city route · 2-3 stops · about -%dE%s/stop · ~$%d" % [
+			job.desc, job.energy, cpu_hint, pay]
 		if heat > 0:
 			desc += "   [risk: +%d heat · %d%% clean]" % [heat, success]
 		var btn_text := "ACCEPT"
@@ -933,10 +1127,6 @@ func _refresh_jobs() -> void:
 			desc += "  (requires %s status)" % GameData.STATUS_RANKS[status_req]["title"]
 		elif job.req_computer and not GameState.has_computer:
 			btn_text = "NEED PC"
-			disabled = true
-			on_press = Callable()
-		elif GameState.active_jobs.size() >= GameState.MAX_ACTIVE_JOBS:
-			btn_text = "FULL"
 			disabled = true
 			on_press = Callable()
 		_add_row(_jobs_modal, job.name, desc, btn_text, disabled, on_press)
@@ -1011,8 +1201,11 @@ func _refresh_bag() -> void:
 		if GameState.is_consumable(id):
 			continue
 		var item: Dictionary = GameData.ITEMS[id]
+		var desc: String = str(item.get("desc", "Junk — sell for ~$%d each at the pawn shop." % int(round(item.price * GameState.hustle_mult()))))
+		if item.get("key_item", false):
+			desc = str(item.get("desc", "Key item."))
 		_add_row(_bag_modal, "%s  ×%d" % [item.name, GameState.inventory[id]],
-				"Junk — sell for ~$%d each at the pawn shop." % int(round(item.price * GameState.hustle_mult())),
+				desc,
 				"", true, Callable())
 
 
@@ -1254,3 +1447,5 @@ func _modal_label(modal: Dictionary, text: String, color: Color, size: int = 16)
 	label.add_theme_font_size_override("font_size", size)
 	label.add_theme_color_override("font_color", color)
 	modal.rows.add_child(label)
+	if modal.root.visible:
+		_fit_modal_to_viewport(modal)

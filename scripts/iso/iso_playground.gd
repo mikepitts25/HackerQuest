@@ -66,7 +66,7 @@ func _search_trash(id: String, pile: Area3D) -> void:
 		return
 	GameState.trash_searched[id] = true
 	var item_id: String = GameData.TRASH_LOOT.pick_random()
-	var scrap := int(round(randi_range(3, 8) * GameState.hustle_mult()))
+	var scrap := int(round(randi_range(2, 4) * GameState.hustle_mult()))
 	GameState.add_item(item_id)
 	GameState.add_cash(scrap)
 	GameState.add_xp(3)

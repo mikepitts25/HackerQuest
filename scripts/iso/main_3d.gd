@@ -13,6 +13,9 @@ const DISTRICT_SCENES := {
 	"corp_row": "res://scenes/iso/districts/corp_row_3d.tscn",
 	"darknet": "res://scenes/iso/districts/darknet_3d.tscn",
 	"drowned_quarter": "res://scenes/iso/districts/drowned_quarter_3d.tscn",
+	# Interior reached only via the door inside Corp Row — not a fast-travel
+	# stop (absent from DISTRICT_MAP) and not in GameData.DISTRICTS.
+	"corp_datacenter": "res://scenes/iso/districts/corp_datacenter_3d.tscn",
 }
 
 @onready var world_container: Node3D = $WorldContainer
@@ -36,7 +39,6 @@ const NIGHT := {
 }
 
 var current_district_id := ""
-var _toasts: VBoxContainer
 var _day_t := -1.0
 var _day_tween: Tween
 var _news_day := -1
@@ -47,8 +49,6 @@ func _ready() -> void:
 	GameState.trace_started.connect(_on_trace_started)
 	GameState.trace_cleared.connect(_on_trace_cleared)
 	GameState.jobs_changed.connect(_on_jobs_changed)
-	_build_toast_feed()
-	GameState.toast.connect(_on_toast)
 	GameState.stats_changed.connect(_update_daylight)
 	GameState.stats_changed.connect(_check_morning_news)
 	_news_day = GameState.day
@@ -148,13 +148,14 @@ func start_combat(enemy_id: String) -> void:
 
 # --- street encounters (G6 phase 3) -------------------------------------------
 
-const NO_ENCOUNTER_DISTRICTS := ["home"]
+const NO_ENCOUNTER_DISTRICTS := ["home", "corp_datacenter"]
 const ENCOUNTER_COOLDOWN := 2  # safe travels after any fight
 
 # Background music per district (track files in assets/audio/music/).
 const DISTRICT_MUSIC := {
 	"home": "city", "plaza": "city", "market": "city", "underpass": "city",
 	"corp_row": "corp", "darknet": "darknet", "drowned_quarter": "drowned",
+	"corp_datacenter": "corp",
 }
 
 var _enc_rng := RandomNumberGenerator.new()
@@ -173,7 +174,7 @@ func _maybe_encounter(district_id: String) -> void:
 		return
 	var enemy_id := roll_encounter(
 		GameState.status_index(), GameState.heat, GameState.r10t_beaten,
-		GameState.combat_stats().attack, _enc_rng)
+		GameState.combat_stats().attack, _enc_rng, district_id, GameState.defeated_crew_bosses)
 	if enemy_id == "":
 		return
 	_travels_since_combat = 0
@@ -189,9 +190,16 @@ func _maybe_encounter(district_id: String) -> void:
 
 # Pure encounter decision (no node/GameState deps, so it's unit-testable).
 # Returns a GameData.ENEMIES id, or "" for no fight.
-static func roll_encounter(status_idx: int, heat: int, r10t_beaten: bool, attack: int, rng: RandomNumberGenerator) -> String:
+static func roll_encounter(status_idx: int, heat: int, r10t_beaten: bool, attack: int,
+		rng: RandomNumberGenerator, district_id := "", defeated_crew_bosses: Array = []) -> String:
 	if attack < 3 or status_idx < 1:
 		return ""  # no real offense, or too green to be worth ambushing
+	if GameData.RIOT_CREW_BY_DISTRICT.has(district_id):
+		var crew_id: String = GameData.RIOT_CREW_BY_DISTRICT[district_id]
+		if not (crew_id in defeated_crew_bosses):
+			var district_req: int = int(GameData.DISTRICTS[district_id].get("status_req", 0))
+			if status_idx >= district_req and rng.randf() < 0.24:
+				return crew_id
 	# R10T: a rare, once-per-game boss once you're a name (Black Hat+).
 	if status_idx >= 3 and not r10t_beaten and rng.randf() < 0.07:
 		return "r10t"
@@ -238,7 +246,11 @@ func talk_wanderer(npc_name: String) -> void:
 
 
 func talk_npc(id: String) -> void:
-	hud.show_dialog(NpcDialogs.lines_for(id))
+	if NpcDialogs.needs_confirmation(id):
+		hud.show_confirm_dialog(NpcDialogs.lines_for(id), "YES", "NO",
+				func() -> void: hud.show_dialog(NpcDialogs.confirm_lines_for(id)))
+	else:
+		hud.show_dialog(NpcDialogs.lines_for(id))
 
 
 # Hard jolt when you get TRACED — the one moment that deserves violence.
@@ -269,45 +281,9 @@ func _update_daylight() -> void:
 	_day_tween.tween_property(sun, "light_energy", lerpf(DUSK.sun_e, NIGHT.sun_e, t), 1.2)
 
 
-# Screen-space toast feed — the 3D stand-in for the 2D player's floating
-# text (player.gd renders GameState.toast in world space; here it's UI).
-func _build_toast_feed() -> void:
-	# Lower-middle of the screen — clear of the HUD top bar and the bottom
-	# controls. Newest toast sits at the bottom; older ones stack upward and fade.
-	_toasts = VBoxContainer.new()
-	_toasts.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_toasts.offset_top = -520.0
-	_toasts.offset_bottom = -250.0
-	_toasts.offset_left = -330.0
-	_toasts.offset_right = 330.0
-	_toasts.alignment = BoxContainer.ALIGNMENT_END
-	_toasts.add_theme_constant_override("separation", 6)
-	_toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	$UILayer.add_child(_toasts)
-
-
 func _on_toast(text: String, color: Color) -> void:
-	var label := Label.new()
-	label.text = text
-	label.add_theme_font_override("font", UITheme.mono_font())
-	label.add_theme_font_size_override("font_size", 16)
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-	label.add_theme_constant_override("outline_size", 5)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_toasts.add_child(label)
-	# Cap the stack so a burst of rewards can't pile up unreadably.
-	while _toasts.get_child_count() > 5:
-		var oldest := _toasts.get_child(0)
-		_toasts.remove_child(oldest)
-		oldest.queue_free()
-	var fade := label.create_tween()
-	fade.tween_interval(2.6)
-	fade.tween_property(label, "modulate:a", 0.0, 0.6)
-	fade.tween_callback(label.queue_free)
+	if hud.has_method("add_feed_message"):
+		hud.add_feed_message(text, color)
 
 
 func _on_trace_started(_reason: String, _seconds: float) -> void:

@@ -35,6 +35,10 @@ SFX=(
   "click|0.5|crisp short UI button tap blip, holographic interface"
   "search|1.3|rummaging through a pile of trash and e-waste, plastic and metal clatter, digging"
   "travel|1.2|quick digital whoosh transition, fast travel across the city, synth sweep"
+  "riot_sting|1.6|menacing rival hacker arrival sting, distorted glitch synth stab, villain signature motif, aggressive cyber, dramatic"
+  "crew_sting|1.0|short dark glitch enemy appears cue, cyber crew enforcer arrives, tense synth stab"
+  "riot_down|1.8|heavy triumphant cyberpunk boss defeated sting, rival process terminated, distorted synth fanfare collapsing into static, dramatic"
+  "crew_down|1.2|short cyber enemy defeated sting, crew member knocked offline, glitchy synth downfall"
 )
 
 # name|length_ms|prompt   (instrumental loops)
@@ -43,7 +47,8 @@ MUSIC=(
   "city|40000|chill cyberpunk lo-fi beat, rainy neon street ambience, relaxed late night, looping"
   "corp|32000|cold corporate synth ambience, sterile clean tension, cyberpunk, looping"
   "darknet|32000|dark glitchy underground darknet ambience, mysterious low pulse, looping"
-  "drowned|32000|eerie watery ambient drone, submerged cyberpunk, sparse and haunting, looping"
+  "drowned|40000|endgame submerged cyberpunk descent, deep ominous synth drone, distant detuned choir pads, slow climactic pulse beneath black water, glitchy data whispers, haunting and final, looping"
+  "riot_boss|40000|intense endgame cyberpunk boss battle theme, aggressive distorted synth bass, glitchy breakbeat drums, menacing rival hacker showdown, dark driving arpeggios, high stakes, looping"
 )
 
 json_escape() { python3 -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$1"; }

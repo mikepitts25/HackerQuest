@@ -39,6 +39,26 @@ const SHOP_BLDG_SCENE := "res://assets/iso/buildings/bldg_shop.tscn"
 const GROUND_COLOR := Color(0.078, 0.086, 0.118)
 const WALL_COLOR := Color(0.067, 0.078, 0.102)
 
+# Crowd variety (G7+): skin tones and hair colors the anonymous citizens draw
+# from so the streets aren't a uniform clone army. Paired with a ~50/50
+# male/female split and per-instance build/height jitter in _vary_citizen.
+const SKIN_TONES := [
+	Color(0.96, 0.80, 0.66), Color(0.89, 0.72, 0.57), Color(0.80, 0.62, 0.47),
+	Color(0.66, 0.48, 0.34), Color(0.50, 0.36, 0.26), Color(0.40, 0.28, 0.20),
+]
+const HAIR_COLORS := [
+	Color(0.07, 0.07, 0.08), Color(0.20, 0.13, 0.09), Color(0.45, 0.30, 0.16),
+	Color(0.62, 0.62, 0.64), Color(0.78, 0.24, 0.36), Color(0.24, 0.52, 0.74),
+	Color(0.55, 0.34, 0.66), Color(0.90, 0.78, 0.42),
+]
+# Distinctly girly outfit colors so female citizens read at a glance, overriding
+# the district's gender-neutral tint (see _vary_citizen).
+const FEMALE_OUTFITS := [
+	Color(0.93, 0.42, 0.66), Color(0.96, 0.55, 0.75), Color(0.85, 0.30, 0.55),
+	Color(0.72, 0.45, 0.85), Color(0.62, 0.50, 0.90), Color(0.98, 0.50, 0.55),
+	Color(0.95, 0.62, 0.72), Color(0.55, 0.78, 0.92),
+]
+
 # Field-gig markers (job board v2). Archetype → action prompt + marker color.
 const JOB_ARCHETYPES := {
 	"wifi": {"prompt": "Crack the node", "color": Color("7ee787")},
@@ -47,24 +67,22 @@ const JOB_ARCHETYPES := {
 	"heist": {"prompt": "Lift the data", "color": Color("ff6b6b")},
 	"recon": {"prompt": "Case the spot", "color": Color("7adfff")},
 }
-# Open floor spots per district where gig markers land (up to two at once).
-const JOB_SPOTS := {
-	"plaza": [Vector2(11, 11), Vector2(16, 11.5)],
-	"market": [Vector2(10, 10.5), Vector2(14.5, 10.5)],
-	"underpass": [Vector2(7.5, 8), Vector2(11, 8)],
-	"corp_row": [Vector2(10, 11), Vector2(6, 11)],
-	"darknet": [Vector2(9, 10), Vector2(13, 10)],
-}
-
 var main: Node
 var area_size := Vector2(12, 9)  # meters
 var _spawns := {}                # spawn id -> Vector2 (x, z)
 var _buildings: Array = []       # {node, tall} — for botnet LEDs
 
+# Per-district overrides for where a HOME named NPC stands (meters), set by a
+# subclass before _spawn_npcs so the enlarged maps can spread the regulars out
+# (and tuck the shady ones into back corners) without touching GameData.NPCS —
+# which the legacy 2D shell still reads at its original small scale.
+var _npc_overrides := {}
+
 # Where ambient wanderers may roam. Empty = the whole district (minus a
 # margin). Districts with interiors (the apartment) restrict this so
 # strangers stay on the street where they belong.
 var wander_zone := Rect2()
+var ambient_life_enabled := true
 
 # Ambient traffic lanes (G7). Each entry: {path: PackedVector2Array (a closed
 # loop of XZ waypoints in meters), count: int, speed: float, color: Color}.
@@ -79,8 +97,9 @@ func build(p_main: Node) -> void:
 	_add_heat_patrol()
 	_add_police_presence()
 	_add_botnet_glow()
-	_spawn_crowd(_crowd_size())
-	_spawn_hoverboarders(_hoverboarder_count())
+	if ambient_life_enabled:
+		_spawn_crowd(_crowd_size())
+		_spawn_hoverboarders(_hoverboarder_count())
 	_spawn_traffic()
 	_render_job_markers()
 
@@ -265,9 +284,10 @@ func _spawn_npcs(district_id: String) -> void:
 		var home: bool = npc.get("district", "") == district_id
 		var pos: Vector2
 		if home:
-			pos = Vector2(npc.pos[0] * PX, npc.pos[1] * PX)
+			# Subclass override wins (enlarged-map placement); else legacy coords.
+			pos = _npc_overrides.get(npc_id, Vector2(npc.pos[0] * PX, npc.pos[1] * PX))
 		else:
-			pos = Vector2(area_size.x * 0.5 + visitors * 1.2 - 1.2, area_size.y * 0.32)
+			pos = Vector2(area_size.x * 0.4 + visitors * 2.0, area_size.y * 0.28)
 			visitors += 1
 		# Named NPCs without a dedicated scene spawn as a tinted citizen.
 		var scene_path: String = CHAR_SCENES.get(npc_id, CITIZEN_SCENE)
@@ -280,7 +300,10 @@ func _spawn_npcs(district_id: String) -> void:
 		var id: String = npc_id  # capture for the closure
 		_interact(ch, "Talk to %s" % npc.name, Vector3(0.6, 1.3, 0.6),
 				func() -> void: main.talk_npc(id))
-		_sign(npc.name + ("" if home else " (visiting)"), pos, 1.75, 32)
+		var label := "%s\n(%s)" % [npc.name, npc.get("role", "regular")]
+		if not home:
+			label += "\n(visiting)"
+		_sign(label, pos, 1.75, 28)
 
 
 # Ambient friendly NPCs currently roaming this district (see GameState.ambient).
@@ -307,16 +330,19 @@ func _spawn_wanderers(district_id: String) -> void:
 			randf_range(zone.position.y, zone.end.y))
 		add_child(ch)
 		_tint_body(ch, Color(w.color))
+		_vary_citizen(ch)
 		var nm: String = w.name
 		_interact(ch, "Talk to %s" % nm, Vector3(0.6, 1.3, 0.6),
 				func() -> void: main.talk_wanderer(nm))
 
 
 # Crowd size scales with district area so the bigger districts feel busier.
-# Density bumped in G7 (street life) — the enlarged districts read fuller now;
-# sweeps/night still thin the streets via the skip rolls below.
+# Tuned for the enlarged maps (Big City pass): sparse per square meter so the
+# crowd reads as scattered passers-by rather than a clump, but a higher cap so
+# the much larger plazas don't feel deserted. Named NPCs, ambient wanderers,
+# and hoverboarders add to this; sweeps/night thin it via the skip rolls below.
 func _crowd_size() -> int:
-	return int(area_size.x * area_size.y / 36.0)
+	return mini(8, int(area_size.x * area_size.y / 140.0))
 
 
 # Anonymous pedestrians (G3) — regular people who fill the streets, roam, and
@@ -344,6 +370,7 @@ func _spawn_crowd(n: int) -> void:
 			randf_range(zone.position.y, zone.end.y))
 		add_child(ch)
 		_tint_body(ch, Color(GameData.CITIZEN_TINTS.pick_random()))
+		_vary_citizen(ch)
 		var nm: String = GameData.CITIZEN_NAMES.pick_random()
 		_interact(ch, "Greet %s" % nm, Vector3(0.6, 1.3, 0.6),
 				func() -> void: main.talk_wanderer(nm))
@@ -362,12 +389,54 @@ func _tint_body(ch: Node3D, color: Color) -> void:
 	body.mesh = mesh
 
 
+# Gives a citizen instance its own look: skin tone, hair color/length, build,
+# height, and a roughly even male/female split (female = narrower shoulders +
+# longer hair). Keeps the anonymous crowd from reading as identical clones.
+# Box meshes/materials are shared resources, so any recolored part is
+# duplicated per instance (see _recolor); build/height are node-transform only.
+func _vary_citizen(ch: Node3D) -> void:
+	var skin: Color = SKIN_TONES.pick_random()
+	_recolor(ch, "Body/Head", skin)
+	_recolor(ch, "Body/ArmL/HandL", skin)
+	_recolor(ch, "Body/ArmR/HandR", skin)
+	var hair: MeshInstance3D = ch.get_node_or_null("Body/Head/Hair")
+	if hair:
+		_recolor(ch, "Body/Head/Hair", HAIR_COLORS.pick_random())
+	var body: Node3D = ch.get_node_or_null("Body")
+	if randf() < 0.5:  # female: girly outfit, slimmer torso, longer hair
+		_recolor(ch, "Body", FEMALE_OUTFITS.pick_random())
+		if body:
+			body.scale.x = 0.85
+		if hair:
+			hair.scale = Vector3(1.08, 2.1, 1.18)
+			hair.position.y = 0.14
+	else:  # male: some broader builds and short crops
+		if body and randf() < 0.4:
+			body.scale.x = 1.08
+		if hair and randf() < 0.3:
+			hair.scale.y = 0.55
+	ch.scale = Vector3.ONE * randf_range(0.92, 1.06)  # height variation
+
+
+# Recolors one mesh part of a citizen, duplicating its shared mesh+material so
+# the change is local to this instance.
+func _recolor(ch: Node3D, node_path: String, color: Color) -> void:
+	var mi: MeshInstance3D = ch.get_node_or_null(node_path)
+	if mi == null or mi.mesh == null:
+		return
+	var mesh: Mesh = mi.mesh.duplicate()
+	var mat: StandardMaterial3D = mesh.material.duplicate()
+	mat.albedo_color = color
+	mesh.material = mat
+	mi.mesh = mesh
+
+
 # --- street life (G7) ---------------------------------------------------------
 
 # A few hoverboarders only in the roomier districts — they read as distinct
 # fast-movers, so a couple per big district is plenty.
 func _hoverboarder_count() -> int:
-	return mini(3, int(area_size.x * area_size.y / 120.0))
+	return mini(2, int(area_size.x * area_size.y / 150.0))
 
 
 # Citizens zipping by on boards — reuses the wanderer brain at high speed with
@@ -397,6 +466,7 @@ func _spawn_hoverboarders(n: int) -> void:
 			randf_range(zone.position.y, zone.end.y))
 		add_child(ch)
 		_tint_body(ch, Color(GameData.CITIZEN_TINTS.pick_random()))
+		_vary_citizen(ch)
 		var nm: String = GameData.CITIZEN_NAMES.pick_random()
 		_interact(ch, "Greet %s" % nm, Vector3(0.6, 1.3, 0.6),
 				func() -> void: main.talk_wanderer(nm))
@@ -459,13 +529,13 @@ func _render_job_markers() -> void:
 	if here == "":
 		return
 	var jobs: Array = GameState.active_jobs_in(here)
-	var spots: Array = JOB_SPOTS.get(here, [])
 	for i in jobs.size():
-		var jid: String = jobs[i]
-		var job: Dictionary = GameData.JOBS[jid]
+		var job: Dictionary = jobs[i]
 		var arch: Dictionary = JOB_ARCHETYPES.get(job.get("archetype", "drop"), JOB_ARCHETYPES["drop"])
-		var pos: Vector2 = spots[i] if i < spots.size() else Vector2(area_size.x * 0.5, area_size.y * 0.6)
-		_job_marker(pos, arch.color, job.name, arch.prompt, jid)
+		var pos_data: Array = job.get("pos", [area_size.x * 0.5, area_size.y * 0.6])
+		var pos := Vector2(float(pos_data[0]), float(pos_data[1]))
+		_job_marker(pos, arch.color, "%s\n%d/%d" % [job.name, job.step, job.steps_total],
+				job.get("prompt", arch.prompt), job.uid)
 
 
 # A glowing ground disc + light beam + floating label, interactable to do the
@@ -667,13 +737,191 @@ func _skyline_row(start: Vector2, step: Vector2, n: int, kinds: Array, yaw := 0.
 		_prop(scene, pos, yaw)
 
 
-# A back-street strip: darker pavement, walled on the far side. Pure layout.
-func _back_street(pos: Vector2, size: Vector2) -> void:
+# A back-street strip: darker pavement, optionally walled on the far side.
+func _back_street(pos: Vector2, size: Vector2, add_far_wall := true) -> void:
 	# Sits a hair above the floor patches (top ~0.05 vs 0.02) so where it overlaps
 	# them it renders cleanly on top instead of z-fighting (the flicker you'd see
 	# moving the camera over the plaza promenade).
 	_slab(pos, size, 0.04, 0.03, Color(0.06, 0.066, 0.082))
-	_wall(pos.x, pos.y - 0.2, size.x, 0.2)
+	if add_far_wall:
+		_wall(pos.x, pos.y - 0.2, size.x, 0.2)
+
+
+# --- street-dressing kit (Big City pass) --------------------------------------
+# The enlarged districts need things to fill the space and react to: lit
+# billboards (the "pictures"), food venues you can actually use, and quiet
+# decor (planters, lamps, benches) to break up the open ground.
+
+# Holographic ad faces for the billboards — bright slogan panels that read as
+# "pictures" from across a plaza.
+const AD_LIBRARY := [
+	{"slogan": "SYNTH-NOODLE\nopen 25h", "color": Color(1.0, 0.45, 0.7)},
+	{"slogan": "NEO-COLA\ntaste the glitch", "color": Color(0.95, 0.2, 0.3)},
+	{"slogan": "RAMWORKS\noverclock your life", "color": Color(0.3, 0.8, 1.0)},
+	{"slogan": "GHOST VPN\ndisappear.", "color": Color(0.5, 0.4, 0.95)},
+	{"slogan": "KAGE RAMEN\nslurp loud", "color": Color(1.0, 0.7, 0.2)},
+	{"slogan": "ZERO/ONE\nclub - all night", "color": Color(0.2, 1.0, 0.7)},
+	{"slogan": "WIRED COFFEE\nnever sleep again", "color": Color(0.85, 0.55, 0.35)},
+	{"slogan": "DERMA-INK\nget chromed", "color": Color(0.9, 0.3, 0.9)},
+]
+
+# A big roadside billboard: two posts and a bright emissive ad panel with a
+# slogan. Pass `ad` to pin a specific face, else one is picked at random.
+func _billboard(pos: Vector2, yaw_deg := 0.0, ad := {}) -> void:
+	if ad.is_empty():
+		ad = AD_LIBRARY[randi() % AD_LIBRARY.size()]
+	var holder := Node3D.new()
+	holder.position = Vector3(pos.x, 0, pos.y)
+	holder.rotation.y = deg_to_rad(yaw_deg)
+	add_child(holder)
+	for dx in [-1.5, 1.5]:
+		var post := MeshInstance3D.new()
+		var pm := BoxMesh.new()
+		pm.size = Vector3(0.2, 3.2, 0.2)
+		var pmat := StandardMaterial3D.new()
+		pmat.albedo_color = Color(0.1, 0.11, 0.13)
+		pm.material = pmat
+		post.mesh = pm
+		post.position = Vector3(dx, 1.6, 0)
+		holder.add_child(post)
+	var panel := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(3.8, 2.1, 0.18)
+	var mat := StandardMaterial3D.new()
+	var c: Color = ad.color
+	mat.albedo_color = c.darkened(0.2)
+	mat.emission_enabled = true
+	mat.emission = c
+	mat.emission_energy_multiplier = 0.9
+	bm.material = mat
+	panel.mesh = bm
+	panel.position = Vector3(0, 3.8, 0)
+	holder.add_child(panel)
+	var lbl := Label3D.new()
+	lbl.text = ad.slogan
+	lbl.font_size = 64
+	lbl.pixel_size = 0.006
+	lbl.modulate = Color(1, 1, 1, 0.97)
+	lbl.outline_size = 14
+	lbl.outline_modulate = Color(0, 0, 0, 0.85)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.position = Vector3(0, 3.8, 0.11)
+	holder.add_child(lbl)
+
+
+# A food venue you can buy a meal at: restores energy for cash (a top-up that
+# isn't sleep). Renders a lit stall with an awning and a glowing sign.
+func _eatery(label: String, pos: Vector2, cost: int, energy_gain: int, accent := Color(1.0, 0.55, 0.3), yaw_deg := 0.0) -> void:
+	var holder := Node3D.new()
+	holder.position = Vector3(pos.x, 0, pos.y)
+	holder.rotation.y = deg_to_rad(yaw_deg)
+	add_child(holder)
+	var body := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(2.6, 1.1, 1.3)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.12, 0.13, 0.16)
+	mat.roughness = 0.85
+	bm.material = mat
+	body.mesh = bm
+	body.position.y = 0.55
+	holder.add_child(body)
+	var awn := MeshInstance3D.new()
+	var am := BoxMesh.new()
+	am.size = Vector3(3.0, 0.14, 1.7)
+	var amat := StandardMaterial3D.new()
+	amat.albedo_color = accent
+	amat.emission_enabled = true
+	amat.emission = accent
+	amat.emission_energy_multiplier = 1.1
+	am.material = amat
+	awn.mesh = am
+	awn.position = Vector3(0, 1.45, 0.25)
+	awn.rotation.x = deg_to_rad(-8)
+	holder.add_child(awn)
+	var light := OmniLight3D.new()
+	light.light_color = accent
+	light.light_energy = 1.3
+	light.omni_range = 4.5
+	light.position = Vector3(0, 1.7, 0.4)
+	holder.add_child(light)
+	_sign(label, pos, 2.3, 40)
+	_collider(pos, Vector3(2.6, 1.1, 1.3))
+	# Interact volume on the holder (ground origin), so the reach box sits right.
+	_interact(holder, "Eat at %s ($%d)" % [label, cost], Vector3(2.6, 1.4, 1.6),
+			func() -> void: GameState.buy_meal(label, cost, energy_gain))
+
+
+# A planter box with foliage — quiet decor to break up open ground (no collider,
+# so the crowd and player flow around it freely).
+func _planter(pos: Vector2) -> void:
+	var box := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.9, 0.4, 0.9)
+	var bmat := StandardMaterial3D.new()
+	bmat.albedo_color = Color(0.13, 0.14, 0.17)
+	bm.material = bmat
+	box.mesh = bm
+	box.position = Vector3(pos.x, 0.2, pos.y)
+	add_child(box)
+	var foliage := MeshInstance3D.new()
+	var fm := BoxMesh.new()
+	fm.size = Vector3(0.8, 0.6, 0.8)
+	var fmat := StandardMaterial3D.new()
+	fmat.albedo_color = Color(0.18, 0.4, 0.22)
+	fm.material = fmat
+	foliage.mesh = fm
+	foliage.position = Vector3(pos.x, 0.7, pos.y)
+	add_child(foliage)
+
+
+# A street lamp: slim post with an emissive head and a soft pool of light. Use
+# sparingly (each adds a real light) to dot the larger streets at night.
+func _streetlamp(pos: Vector2, color := Color(1.0, 0.85, 0.6)) -> void:
+	var post := MeshInstance3D.new()
+	var pm := BoxMesh.new()
+	pm.size = Vector3(0.14, 3.0, 0.14)
+	var pmat := StandardMaterial3D.new()
+	pmat.albedo_color = Color(0.1, 0.11, 0.13)
+	pm.material = pmat
+	post.mesh = pm
+	post.position = Vector3(pos.x, 1.5, pos.y)
+	add_child(post)
+	var head := MeshInstance3D.new()
+	var hm := BoxMesh.new()
+	hm.size = Vector3(0.4, 0.12, 0.4)
+	var hmat := StandardMaterial3D.new()
+	hmat.albedo_color = color
+	hmat.emission_enabled = true
+	hmat.emission = color
+	hmat.emission_energy_multiplier = 1.6
+	hm.material = hmat
+	head.mesh = hm
+	head.position = Vector3(pos.x, 3.0, pos.y)
+	add_child(head)
+	var light := OmniLight3D.new()
+	light.light_color = color
+	light.light_energy = 0.9
+	light.omni_range = 5.0
+	light.position = Vector3(pos.x, 2.9, pos.y)
+	add_child(light)
+
+
+# A simple bench — flavor seating; small collider so it reads as solid.
+func _bench(pos: Vector2, yaw_deg := 0.0) -> void:
+	var holder := Node3D.new()
+	holder.position = Vector3(pos.x, 0, pos.y)
+	holder.rotation.y = deg_to_rad(yaw_deg)
+	add_child(holder)
+	var seat := MeshInstance3D.new()
+	var sm := BoxMesh.new()
+	sm.size = Vector3(1.4, 0.1, 0.45)
+	var smat := StandardMaterial3D.new()
+	smat.albedo_color = Color(0.16, 0.15, 0.14)
+	sm.material = smat
+	seat.mesh = sm
+	seat.position.y = 0.42
+	holder.add_child(seat)
 
 
 # Is the city in its late-night phase? The "clock" is energy: fresh after

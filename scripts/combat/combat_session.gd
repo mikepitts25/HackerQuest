@@ -49,6 +49,8 @@ func init(player_stats: Dictionary, p_enemy_id: String, seed_val := -1) -> void:
 	def = int(player_stats.get("defense", 0))
 	crit = float(player_stats.get("crit", 0.0))
 	stealth = int(player_stats.get("stealth", 0))
+	if enemy_id == "r10t" and not bool(player_stats.get("endgame_loadout", false)):
+		_empower_r10t()
 	player_max = maxi(1, int(player_stats.get("integrity", 20)))
 	player_hp = player_max
 	enemy_max = maxi(1, int(enemy.get("integrity", 10)))
@@ -58,6 +60,20 @@ func init(player_stats: Dictionary, p_enemy_id: String, seed_val := -1) -> void:
 	else:
 		rng.randomize()
 	_log("> %s" % enemy.get("intro", "%s blocks your path." % enemy.name))
+
+
+func _empower_r10t() -> void:
+	enemy["integrity"] = 220
+	enemy["attack"] = 30
+	enemy["defense"] = 24
+	enemy["crit"] = 0.24
+	enemy["intro"] = "R10T's avatar floods the channel, massively overclocked and already laughing."
+	enemy["taunts"] = [
+		"Come back when you own real gear.",
+		"I could let the crew handle this, but watching you crash is fun.",
+		"That deck is thrift-store noise.",
+		"You haven't even bought the kit needed to stand here.",
+	]
 
 
 # --- player actions -----------------------------------------------------------

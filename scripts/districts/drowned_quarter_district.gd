@@ -20,11 +20,14 @@ func _build() -> void:
 	_sign("DROWNED QUARTER", Vector2(120, 26), 26)
 	_sign("mind the water. mind the current.", Vector2(130, 68), 14)
 
-	_interactable("Jack into the trunk", Vector2(500, 380), Vector2(110, 110), Color("123a4a"), "THE TRUNK",
-			func() -> void: GameState.notify("The city's spine. Every packet in the bay passes through here. Bring the final contract.", GameState.COL_INFO))
+	_interactable(GameState.trunk_prompt(), Vector2(500, 380), Vector2(110, 110), Color("123a4a"), "THE TRUNK",
+			func() -> void:
+				if not GameState.trunk_ready():
+					GameState.notify(GameState.final_contract_hint(), GameState.COL_WARN)
+				else:
+					GameState.notify("THE TRUNK recognizes the final contract. The city waits for the next move.", GameState.COL_INFO))
 
 	_exit("Darknet Cafe", Vector2(940, 360), Vector2(46, 110), "darknet", "from_drowned")
-	_spawn_wanderers("drowned_quarter")
 
 	_mark("from_darknet", Vector2(880, 360))
 

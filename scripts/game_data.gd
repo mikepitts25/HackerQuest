@@ -8,66 +8,77 @@ const TARGETS := {
 		"desc": "A solar parking meter running firmware from 2009.",
 		"difficulty": 1, "cpu_cost": 1, "payout_min": 10, "payout_max": 20,
 		"heat": 3, "botnet_value": 1, "rep_req": 0,
+		"district": "plaza", "district_tier": 1,
 	},
 	"coffee_shop_router": {
 		"name": "coffee_shop_router",
 		"desc": "Free wifi, default admin password. A classic.",
 		"difficulty": 1, "cpu_cost": 2, "payout_min": 25, "payout_max": 40,
 		"heat": 5, "botnet_value": 1, "rep_req": 0,
+		"district": "plaza", "district_tier": 1,
 	},
 	"old_nas_box": {
 		"name": "old_nas_box",
 		"desc": "Somebody's forgotten home NAS, still chugging away.",
 		"difficulty": 2, "cpu_cost": 3, "payout_min": 50, "payout_max": 80,
 		"heat": 10, "botnet_value": 2, "rep_req": 2,
+		"district": "market", "district_tier": 2, "required_gear": "rig_sidewalk_slicer",
 	},
 	"smart_billboard": {
 		"name": "smart_billboard",
 		"desc": "Downtown LED billboard. The ad rotation budget is juicy.",
 		"difficulty": 3, "cpu_cost": 4, "payout_min": 90, "payout_max": 140,
 		"heat": 15, "botnet_value": 3, "rep_req": 4,
+		"district": "market", "district_tier": 2, "required_gear": "rig_sidewalk_slicer",
 	},
 	"crypto_kiosk": {
 		"name": "crypto_kiosk",
 		"desc": "A sketchy mall crypto ATM. Sketchier security.",
 		"difficulty": 4, "cpu_cost": 5, "payout_min": 180, "payout_max": 260,
 		"heat": 25, "botnet_value": 4, "rep_req": 6,
+		"district": "underpass", "district_tier": 3, "required_gear": "rig_kiosk_needle",
 	},
 	"corp_mail_relay": {
 		"name": "corp_mail_relay",
 		"desc": "MegaCorp's neglected mail relay. The big leagues.",
 		"difficulty": 5, "cpu_cost": 6, "payout_min": 350, "payout_max": 500,
 		"heat": 40, "botnet_value": 6, "rep_req": 9,
+		"district": "corp_row", "district_tier": 4, "required_gear": "rig_tunnel_splice",
 	},
 	"city_power_grid": {
 		"name": "city_power_grid",
 		"desc": "SCADA from the dial-up era. Don't trip the breakers.",
 		"difficulty": 6, "cpu_cost": 7, "payout_min": 550, "payout_max": 800,
 		"heat": 24, "botnet_value": 8, "rep_req": 14,
+		"district": "underpass", "district_tier": 3, "required_gear": "rig_kiosk_needle",
 	},
 	"bank_core": {
 		"name": "bank_core",
 		"desc": "Mainframe behind seven firewalls. The real money.",
 		"difficulty": 7, "cpu_cost": 9, "payout_min": 900, "payout_max": 1300,
 		"heat": 30, "botnet_value": 11, "rep_req": 22,
+		"district": "corp_row", "district_tier": 4, "required_gear": "rig_tunnel_splice",
 	},
 	"satellite_uplink": {
 		"name": "satellite_uplink",
 		"desc": "Orbital relay. Latency's a nightmare, payout isn't.",
 		"difficulty": 8, "cpu_cost": 11, "payout_min": 1500, "payout_max": 2100,
 		"heat": 36, "botnet_value": 15, "rep_req": 35,
+		"district": "darknet", "district_tier": 5, "required_gear": "rig_corpbreaker",
 	},
 	"darknet_market": {
 		"name": "darknet_market",
 		"desc": "Hijack the escrow of the biggest market on the wire.",
 		"difficulty": 9, "cpu_cost": 13, "payout_min": 2400, "payout_max": 3300,
 		"heat": 42, "botnet_value": 20, "rep_req": 55,
+		"district": "darknet", "district_tier": 5, "required_gear": "rig_corpbreaker",
 	},
 	"ai_datacenter": {
 		"name": "ai_datacenter",
 		"desc": "A sentient-grade cluster. Pwn it before it pwns you.",
 		"difficulty": 10, "cpu_cost": 16, "payout_min": 4000, "payout_max": 5500,
 		"heat": 50, "botnet_value": 28, "rep_req": 80,
+		"district": "drowned_quarter", "district_tier": 6, "required_gear": "rig_ghostroot",
 	},
 }
 
@@ -143,6 +154,24 @@ const DISTRICTS := {
 	"corp_row": {"name": "Corp Row", "scene": "res://scenes/districts/corp_row.tscn", "status_req": 3},
 	"darknet": {"name": "Darknet Cafe", "scene": "res://scenes/districts/darknet.tscn", "status_req": 6},
 	"drowned_quarter": {"name": "Drowned Quarter", "scene": "res://scenes/districts/drowned_quarter.tscn", "status_req": 7},
+}
+
+const DISTRICT_TIERS := {
+	"plaza": 1,
+	"market": 2,
+	"underpass": 3,
+	"corp_row": 4,
+	"darknet": 5,
+	"drowned_quarter": 6,
+}
+
+const RIOT_CREW_BY_DISTRICT := {
+	"plaza": "byte_bully",
+	"market": "packet_jackal",
+	"underpass": "tunnel_warden",
+	"corp_row": "ice_barron",
+	"darknet": "ghost_admin",
+	"drowned_quarter": "deep_marrow",
 }
 
 # Plaza favors (Alive City phase 2): small community tasks that pay REP, not
@@ -244,18 +273,28 @@ const DISTRICT_MAP := {
 # district scene. Spawned by District._spawn_npcs(); talked to via
 # Main.talk_npc(id).
 const NPCS := {
-	"pix": {"name": "Pix", "district": "plaza", "pos": [820, 480], "color": "b277e0"},
-	"riot": {"name": "Riot", "district": "plaza", "pos": [520, 420], "color": "3aa68a"},
-	"glitch": {"name": "Glitch", "district": "plaza", "pos": [960, 380], "color": "e0894a"},
-	"marlowe": {"name": "Marlowe", "district": "plaza", "pos": [680, 600], "color": "3b5dc9"},
-	"vex": {"name": "Vex", "district": "market", "pos": [320, 300], "color": "c060c0"},
-	"cipher": {"name": "Cipher", "district": "corp_row", "pos": [380, 360], "color": "5ad1c0"},
-	"oracle": {"name": "Oracle", "district": "darknet", "pos": [520, 360], "color": "d06fff"},
+	"pix": {"name": "Pix", "district": "plaza", "pos": [820, 480], "color": "b277e0", "role": "starter mentor"},
+	"riot": {"name": "Riot", "district": "plaza", "pos": [520, 420], "color": "3aa68a", "role": "rival hacker"},
+	"glitch": {"name": "Glitch", "district": "plaza", "pos": [960, 380], "color": "e0894a", "role": "street tips"},
+	"marlowe": {"name": "Marlowe", "district": "plaza", "pos": [680, 600], "color": "3b5dc9", "role": "heat fixer"},
+	"vex": {"name": "Vex", "district": "market", "pos": [320, 300], "color": "c060c0", "role": "data fence"},
+	"cipher": {"name": "Cipher", "district": "corp_row", "pos": [380, 360], "color": "5ad1c0", "role": "corp intel"},
+	"oracle": {"name": "Oracle", "district": "darknet", "pos": [520, 360], "color": "d06fff", "role": "endgame guide"},
 	# G3 service NPCs — populate the bigger districts with people who DO things.
 	# No dedicated char scene → spawned as a tinted citizen (district_3d).
-	"sparks": {"name": "Sparks", "district": "market", "pos": [1300, 880], "color": "e0b050"},
-	"tess": {"name": "Tess", "district": "plaza", "pos": [1500, 460], "color": "70d0c0"},
-	"ozark": {"name": "Ozark", "district": "underpass", "pos": [1040, 880], "color": "c07040"},
+	"sparks": {"name": "Sparks", "district": "market", "pos": [1300, 880], "color": "e0b050", "role": "parts buyer"},
+	"tess": {"name": "Tess", "district": "plaza", "pos": [1500, 460], "color": "70d0c0", "role": "skill trainer"},
+	"ozark": {"name": "Ozark", "district": "underpass", "pos": [1040, 880], "color": "c07040", "role": "scrap bounty"},
+	# The drowned quarter's lone keeper — a drift-diver who lives in the flooded
+	# fiber and listens to THE TRUNK. The endgame's human voice (reads the final
+	# contract state in her lines); spawned as a tinted citizen.
+	"fathom": {"name": "Fathom", "district": "drowned_quarter", "pos": [480, 640], "color": "4fd0e0", "role": "drift diver"},
+	"byte_bully": {"name": "Byte Bully", "district": "plaza", "pos": [1180, 520], "color": "ff5a66", "role": "R10T crew boss"},
+	"packet_jackal": {"name": "Packet Jackal", "district": "market", "pos": [920, 420], "color": "ff7a3d", "role": "R10T crew boss"},
+	"tunnel_warden": {"name": "Tunnel Warden", "district": "underpass", "pos": [760, 620], "color": "b277e0", "role": "R10T crew boss"},
+	"ice_barron": {"name": "ICE Barron", "district": "corp_row", "pos": [820, 500], "color": "7adfff", "role": "R10T crew boss"},
+	"ghost_admin": {"name": "Ghost Admin", "district": "darknet", "pos": [760, 520], "color": "d06fff", "role": "R10T crew boss"},
+	"deep_marrow": {"name": "Deep Marrow", "district": "drowned_quarter", "pos": [860, 660], "color": "9fffe0", "role": "R10T crew boss"},
 }
 
 # Anonymous crowd flavor (G3): names + body tints for the ambient pedestrians
@@ -277,7 +316,7 @@ const CITIZEN_TINTS := [
 # are today. NPCs not listed stay in their NPCS "district". Mentors and
 # endgame contacts (Pix, Marlowe, Vex, Cipher, Oracle) stay put on purpose.
 const NPC_SCHEDULE := {
-	"riot": ["plaza", "market", "corp_row", "plaza"],   # the rival makes rounds
+	"riot": ["plaza", "market", "underpass", "corp_row", "darknet", "drowned_quarter"],
 	"glitch": ["plaza", "underpass", "plaza", "market"], # the broker keeps moving
 }
 
@@ -301,6 +340,8 @@ const ITEMS := {
 	"circuit_gold": {"name": "Gold-Trace Board", "price": 70},
 	"salvaged_rig": {"name": "Salvaged Rig Core", "price": 120},
 	"crypto_wallet": {"name": "Forgotten Wallet", "price": 200},
+	"r10t_root_key": {"name": "R10T Root Key", "price": 0, "key_item": true,
+		"desc": "Riot's private trunk credential. The city core will not open without it."},
 }
 
 # Weighted pool for alley scavenging (GPU is the rare find).
@@ -315,22 +356,22 @@ const TRASH_LOOT := [
 # Falls back to "default" for any district not listed (GameData.trash_table).
 const TRASH_TABLES := {
 	"underpass": {
-		"scrap": [6, 15], "xp": 4, "rare_chance": 0.20,
+		"scrap": [3, 8], "xp": 4, "rare_chance": 0.20,
 		"pool": ["ram_stick", "ram_stick", "old_hdd", "old_hdd", "old_gpu", "old_gpu", "circuit_gold"],
 		"rare": ["salvaged_rig", "circuit_gold", "crypto_wallet"],
 	},
 	"market": {
-		"scrap": [4, 10], "xp": 3, "rare_chance": 0.12,
+		"scrap": [2, 5], "xp": 3, "rare_chance": 0.12,
 		"pool": ["copper_wire", "cracked_phone", "ram_stick", "ram_stick", "old_hdd", "old_gpu"],
 		"rare": ["circuit_gold", "salvaged_rig"],
 	},
 	"corp_row": {
-		"scrap": [3, 8], "xp": 3, "rare_chance": 0.16,
+		"scrap": [2, 4], "xp": 3, "rare_chance": 0.16,
 		"pool": ["ram_stick", "old_hdd", "old_gpu", "old_gpu", "circuit_gold"],
 		"rare": ["salvaged_rig", "crypto_wallet"],
 	},
 	"default": {
-		"scrap": [3, 7], "xp": 3, "rare_chance": 0.06,
+		"scrap": [2, 4], "xp": 3, "rare_chance": 0.06,
 		"pool": ["copper_wire", "copper_wire", "cracked_phone", "ram_stick", "old_hdd"],
 		"rare": ["circuit_gold"],
 	},
@@ -339,6 +380,14 @@ const TRASH_TABLES := {
 
 static func trash_table(district: String) -> Dictionary:
 	return TRASH_TABLES.get(district, TRASH_TABLES["default"])
+
+
+static func district_tier_name(district: String) -> String:
+	var d: Dictionary = DISTRICTS.get(district, {})
+	var tier: int = int(DISTRICT_TIERS.get(district, 0))
+	if tier <= 0:
+		return str(d.get("name", "Unknown"))
+	return "tier %d %s" % [tier, str(d.get("name", "Unknown"))]
 
 # Buyable, repeatable, usable items. Effects applied by GameState.use_consumable:
 #   energy : restores Energy (capped at max)
@@ -411,10 +460,52 @@ const ENEMIES := {
 		"flee": false, "tier": 2,
 		"intro": "The trace resolves into a corp enforcer. No more running.",
 		"taunts": ["located.", "hold still.", "resistance logged."]},
+	"byte_bully": {
+		"name": "Byte Bully", "integrity": 38, "attack": 7, "defense": 4, "crit": 0.06,
+		"moveset": ["exploit", "exploit", "ddos", "firewall"],
+		"loot": {"cash": [95, 150], "xp": 55, "rep": 2, "gear": "rig_sidewalk_slicer"},
+		"flee": false, "tier": 1, "crew": "r10t", "district": "plaza",
+		"intro": "R10T's Plaza bruiser blocks your path, running a dirty sidewalk rig.",
+		"taunts": ["R10T said you still click tutorials.", "This block pays tribute.", "Drop your deck and walk."]},
+	"packet_jackal": {
+		"name": "Packet Jackal", "integrity": 50, "attack": 10, "defense": 6, "crit": 0.08,
+		"moveset": ["exploit", "ddos", "trace_lock", "exploit", "firewall"],
+		"loot": {"cash": [180, 280], "xp": 75, "rep": 3, "gear": "rig_kiosk_needle"},
+		"flee": false, "tier": 2, "crew": "r10t", "district": "market",
+		"intro": "Packet Jackal paces between stalls, selling fear with a sharpened kiosk rig.",
+		"taunts": ["Market tax. Pay in packets.", "Your signal smells cheap.", "R10T already owns your route."]},
+	"tunnel_warden": {
+		"name": "Tunnel Warden", "integrity": 64, "attack": 13, "defense": 8, "crit": 0.10,
+		"moveset": ["trace_lock", "exploit", "ddos", "firewall", "exploit"],
+		"loot": {"cash": [300, 460], "xp": 95, "rep": 4, "gear": "rig_tunnel_splice"},
+		"flee": false, "tier": 3, "crew": "r10t", "district": "underpass",
+		"intro": "Tunnel Warden steps out of the dark, every relay in the Underpass bending toward them.",
+		"taunts": ["The Underpass echoes when you miss.", "R10T said break your knees first.", "No exits down here."]},
+	"ice_barron": {
+		"name": "ICE Barron", "integrity": 78, "attack": 16, "defense": 11, "crit": 0.12,
+		"moveset": ["firewall", "exploit", "ddos", "trace_lock", "exploit"],
+		"loot": {"cash": [520, 760], "xp": 120, "rep": 5, "gear": "rig_corpbreaker"},
+		"flee": false, "tier": 4, "crew": "r10t", "district": "corp_row",
+		"intro": "ICE Barron descends from a Corp Row lobby like a hostile audit.",
+		"taunts": ["You are not enterprise-ready.", "R10T gave me your threat model.", "Your rig voids the warranty."]},
+	"ghost_admin": {
+		"name": "Ghost Admin", "integrity": 94, "attack": 19, "defense": 14, "crit": 0.15,
+		"moveset": ["trace_lock", "exploit", "ddos", "firewall", "ddos"],
+		"loot": {"cash": [780, 1100], "xp": 150, "rep": 6, "gear": "rig_ghostroot"},
+		"flee": false, "tier": 5, "crew": "r10t", "district": "darknet",
+		"intro": "Ghost Admin appears in the Darknet Cafe feed before their body reaches the door.",
+		"taunts": ["I moderated your whole career.", "Root denied.", "R10T is waiting past your ceiling."]},
+	"deep_marrow": {
+		"name": "Deep Marrow", "integrity": 112, "attack": 22, "defense": 16, "crit": 0.16,
+		"moveset": ["trace_lock", "ddos", "exploit", "firewall", "ddos"],
+		"loot": {"cash": [1000, 1400], "xp": 180, "rep": 7, "gear": "rig_trunkneedle"},
+		"flee": false, "tier": 6, "crew": "r10t", "district": "drowned_quarter",
+		"intro": "Deep Marrow rises out of the Drowned Quarter fog, carrying R10T's trunk-side kit.",
+		"taunts": ["The water remembers weak signals.", "R10T keeps you alive as a joke.", "No one jacks in clean."]},
 	"r10t": {
-		"name": "R10T", "integrity": 70, "attack": 10, "defense": 6, "crit": 0.12,
+		"name": "R10T", "integrity": 95, "attack": 14, "defense": 8, "crit": 0.14,
 		"moveset": ["exploit", "exploit", "ddos", "firewall", "exploit"],
-		"loot": {"cash": [300, 500], "xp": 120, "rep": 8, "gear": "rig_breaker"},
+		"loot": {"cash": [300, 500], "xp": 120, "rep": 8, "gear": "rig_breaker", "item": "r10t_root_key"},
 		"flee": false, "boss": true, "tier": 3,
 		"intro": "R10T's avatar flickers in — your old rival, grinning.",
 		"taunts": ["thought you were better than me?", "still running scripts?",
@@ -562,6 +653,18 @@ const GEAR := {
 		"desc": "Purpose-built for cracking. It hums."},
 	"rig_zeroday": {"name": "Zero-Day Cannon", "slot": "rig", "cyber": 14, "price": 2500, "status_req": 4,
 		"desc": "Point it at anything. Anything breaks."},
+	"rig_sidewalk_slicer": {"name": "Sidewalk Slicer", "slot": "rig", "cyber": 6, "price": 0, "crew_drop": true,
+		"desc": "Byte Bully's stripped street rig. It bites into Market-tier nodes."},
+	"rig_kiosk_needle": {"name": "Kiosk Needle", "slot": "rig", "cyber": 9, "price": 0, "crew_drop": true,
+		"desc": "Packet Jackal's precise skimmer rig. It makes Underpass targets much less stubborn."},
+	"rig_tunnel_splice": {"name": "Tunnel Splice", "slot": "rig", "cyber": 12, "price": 0, "crew_drop": true,
+		"desc": "Tunnel Warden's relay splice. Corp Row mailrooms hate this thing."},
+	"rig_corpbreaker": {"name": "Corpbreaker", "slot": "rig", "cyber": 16, "price": 0, "crew_drop": true,
+		"desc": "ICE Barron's audited intrusion rig. Built to pry open Darknet-tier infrastructure."},
+	"rig_ghostroot": {"name": "Ghostroot Rig", "slot": "rig", "cyber": 19, "price": 0, "crew_drop": true,
+		"desc": "Ghost Admin's root kit deck. It gives you a real shot at Drowned Quarter targets."},
+	"rig_trunkneedle": {"name": "Trunkneedle", "slot": "rig", "cyber": 21, "price": 0, "crew_drop": true,
+		"desc": "Deep Marrow's trunk-side rig. It is tuned for the last door, not the shop window."},
 	"fw_foam": {"name": "Foam Firewall", "slot": "firewall", "defense": 3, "price": 100,
 		"desc": "Cheap, but it'll soak a hit."},
 	"fw_ice": {"name": "Hardened ICE", "slot": "firewall", "defense": 7, "price": 550, "status_req": 2,

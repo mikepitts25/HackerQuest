@@ -4,9 +4,11 @@
       "type": "stdio",
       "command": "node",
       "args": [
-        "/Users/mike/AppIdeas/HackerQuest/hacker-quest/server/build/index.js"
+        "/Users/mike/AppIdeas/HackerQuest/server/build/index.js"
       ],
-      "env": {}
+      "env": {
+        "GODOT_MCP_PORT": "6505"
+      }
     }
   }
 }

@@ -161,7 +161,7 @@ func _refresh() -> void:
 		_shop_row(item.name, desc, btn_text, disabled, on_press)
 
 	# Sell loot — junk items only (consumables are bought/used, not sold here).
-	var junk: Array = GameState.inventory.keys().filter(func(k): return GameData.ITEMS.has(k))
+	var junk: Array = GameState.inventory.keys().filter(func(k): return GameState.is_junk_item(k))
 	if not junk.is_empty():
 		_begin_section("YOUR LOOT — sell for cash", junk.size())
 		for item_id in junk:

@@ -59,6 +59,13 @@ func sfx(name: String, pitch_var := 0.06) -> void:
 	p.play()
 
 
+# The track currently playing (""/empty = silence). Lets callers stash the
+# district track before swapping to event music (e.g. a boss theme) and restore
+# it afterward.
+func current_track() -> String:
+	return _music_track
+
+
 # Switch the looping background track (no-op if it's already playing).
 func music(track: String) -> void:
 	if track == _music_track:

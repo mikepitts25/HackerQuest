@@ -65,33 +65,38 @@ func _build_ui() -> void:
 	vbox.add_theme_constant_override("separation", 10)
 	margin.add_child(vbox)
 
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 12)
+	var header := VBoxContainer.new()
+	header.add_theme_constant_override("separation", 4)
 	vbox.add_child(header)
+
+	var title_row := HBoxContainer.new()
+	title_row.add_theme_constant_override("separation", 12)
+	header.add_child(title_row)
 
 	var title := Label.new()
 	title.text = "pwn-shell v0.1"
 	title.add_theme_font_override("font", mono)
 	title.add_theme_font_size_override("font_size", 22)
 	title.add_theme_color_override("font_color", Color(C_CYAN))
-	header.add_child(title)
+	title_row.add_child(title)
 
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(spacer)
-
-	_stats_label = Label.new()
-	_stats_label.add_theme_font_override("font", mono)
-	_stats_label.add_theme_font_size_override("font_size", 15)
-	_stats_label.add_theme_color_override("font_color", Color(C_DIM))
-	header.add_child(_stats_label)
+	title_row.add_child(spacer)
 
 	var exit_btn := Button.new()
 	exit_btn.text = "EXIT"
 	exit_btn.focus_mode = Control.FOCUS_NONE
 	exit_btn.custom_minimum_size = Vector2(80, 44)
 	exit_btn.pressed.connect(close_terminal)
-	header.add_child(exit_btn)
+	title_row.add_child(exit_btn)
+
+	_stats_label = Label.new()
+	_stats_label.add_theme_font_override("font", mono)
+	_stats_label.add_theme_font_size_override("font_size", 14)
+	_stats_label.add_theme_color_override("font_color", Color(C_DIM))
+	_stats_label.clip_text = true
+	header.add_child(_stats_label)
 
 	_output = RichTextLabel.new()
 	_output.bbcode_enabled = true
@@ -250,7 +255,8 @@ func _cmd_scan() -> void:
 		elif GameState.exploited.has(id):
 			status = "  [PWNED]"
 		var stars := "*".repeat(t.difficulty)
-		_say("  %s  diff %s%s" % [_link("inspect", id, id, C_CYAN), stars, status])
+		var tier_label := GameData.district_tier_name(str(t.get("district", "")))
+		_say("  %s  %s  diff %s%s" % [_link("inspect", id, id, C_CYAN), tier_label, stars, status])
 	_say("tap a target (or 'inspect <target>') for details", C_DIM)
 
 
@@ -267,8 +273,18 @@ func _cmd_inspect(arg: String) -> void:
 		return
 	_say("── %s ──" % arg, C_CYAN)
 	_say(t.desc, C_DIM)
-	_say("  difficulty : %d/5" % t.difficulty)
+	_say("  district   : %s" % GameData.district_tier_name(str(t.get("district", ""))))
+	_say("  difficulty : %d/10" % t.difficulty)
 	_say("  success    : ~%d%%" % int(_chance(t) * 100))
+	var req_gear := GameState.target_required_gear(t)
+	if req_gear != "":
+		var gear_name: String = GameData.GEAR[req_gear].name
+		if GameState.target_required_gear_equipped(t):
+			_say("  recommended rig : %s equipped (+20%%)" % gear_name, C_CYAN)
+		elif GameState.owns_gear(req_gear):
+			_say("  recommended rig : %s owned; equip it for best odds" % gear_name, C_YEL)
+		else:
+			_say("  recommended rig : %s missing (beat the previous district boss)" % gear_name, C_YEL)
 	_say("  payout     : $%d-$%d" % [t.payout_min, t.payout_max])
 	_say("  CPU cost   : %d (you have %d)" % [t.cpu_cost, GameState.cpu])
 	_say("  heat gain  : +%d" % t.heat)
@@ -285,7 +301,8 @@ const EXPLOIT_ENERGY := 1  # soft energy cost per exploit attempt
 
 
 func _chance(t: Dictionary) -> float:
-	var base: float = 0.95 - t.difficulty * 0.12 + GameState.reputation * 0.015 + GameState.gear_hack_bonus()
+	var base: float = 0.95 - t.difficulty * 0.12 + GameState.reputation * 0.015 \
+		+ GameState.gear_hack_bonus() + GameState.target_tier_gear_modifier(t)
 	return clampf(base - GameState.fatigue_penalty() - GameState.heat_penalty(), 0.05, 0.95)
 
 
@@ -307,6 +324,10 @@ func _cmd_exploit(arg: String) -> void:
 		_say("you're running on fumes — focus slipping, odds down %d%%." % int(GameState.fatigue_penalty() * 100), C_YEL)
 	if GameState.heat_penalty() > 0.0:
 		_say("%s: they're watching — odds down %d%%. lie low (sleep) to cool off." % [GameState.heat_tier_name().to_upper(), int(GameState.heat_penalty() * 100)], C_YEL)
+	var req_gear := GameState.target_required_gear(t)
+	if req_gear != "" and not GameState.target_required_gear_equipped(t):
+		var gear_name: String = GameData.GEAR[req_gear].name
+		_say("wrong rig for this tier — %s would give you a much cleaner angle." % gear_name, C_YEL)
 	GameState.spend_cpu(t.cpu_cost)
 	GameState.drain_energy(EXPLOIT_ENERGY)
 	_say("running exploit against %s ..." % arg, C_DIM)

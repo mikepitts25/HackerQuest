@@ -123,8 +123,9 @@ func _spawn_npcs(district_id: String) -> void:
 		if npc.get("district", "") != district_id:
 			continue
 		var id: String = npc_id  # capture for the closure
+		var label := "%s\n(%s)" % [npc.name, npc.get("role", "regular")]
 		_interactable("Talk to %s" % npc.name, Vector2(npc.pos[0], npc.pos[1]),
-				Vector2(32, 32), Color(npc.color), npc.name,
+				Vector2(32, 32), Color(npc.color), label,
 				func() -> void: main.talk_npc(id))
 
 
@@ -145,7 +146,7 @@ func _search_trash(id: String, pile: Interactable) -> void:
 		return
 	GameState.trash_searched[id] = true
 	var item_id: String = GameData.TRASH_LOOT.pick_random()
-	var scrap := int(round(randi_range(3, 8) * GameState.hustle_mult()))
+	var scrap := int(round(randi_range(2, 4) * GameState.hustle_mult()))
 	GameState.add_item(item_id)
 	GameState.add_cash(scrap)
 	GameState.add_xp(3)

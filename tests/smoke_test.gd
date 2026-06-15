@@ -6,15 +6,164 @@ extends Node
 
 var _failures: Array[String] = []
 
+class FakeMain:
+	extends Node
+	var current_district_id := "drowned_quarter"
+	func go_to(_district_id: String, _spawn_id: String) -> void:
+		pass
+	func talk_wanderer(_npc_name: String) -> void:
+		pass
+
 
 func _check(cond: bool, what: String) -> void:
 	if not cond:
 		_failures.append(what)
 
 
+func _controls_fit_within(node: Node, rect: Rect2) -> bool:
+	if node is Control and node.visible:
+		var control := node as Control
+		var bounds := control.get_global_rect()
+		if bounds.position.x < rect.position.x - 0.5:
+			return false
+		if bounds.position.y < rect.position.y - 0.5:
+			return false
+		if bounds.end.x > rect.end.x + 0.5:
+			return false
+		if bounds.end.y > rect.end.y + 0.5:
+			return false
+		if node is ScrollContainer:
+			return true
+	for child in node.get_children():
+		if not _controls_fit_within(child, rect):
+			return false
+	return true
+
+
+func _action_prompt_wraps(hud: Control) -> bool:
+	var button := hud.get_node_or_null("ActionButton") as Button
+	var label := hud.get_node_or_null("ActionButton/ActionPromptLabel") as Label
+	if button == null or label == null:
+		return false
+	if label.autowrap_mode == TextServer.AUTOWRAP_OFF:
+		return false
+	if label.get_global_rect().end.x > button.get_global_rect().end.x + 0.5:
+		return false
+	if label.get_global_rect().end.y > button.get_global_rect().end.y + 0.5:
+		return false
+	return label.text == "Greet a food-cart cook"
+
+
+func _find_label_starting_at(node: Node, prefix: String) -> Label:
+	if node is Label and node.is_visible_in_tree() and (node as Label).text.begins_with(prefix):
+		return node as Label
+	for child in node.get_children():
+		var found := _find_label_starting_at(child, prefix)
+		if found != null:
+			return found
+	return null
+
+
+func _find_label_containing(node: Node, text: String) -> Label:
+	if node is Label and node.is_visible_in_tree() and (node as Label).text.contains(text):
+		return node as Label
+	for child in node.get_children():
+		var found := _find_label_containing(child, text)
+		if found != null:
+			return found
+	return null
+
+
+func _hud_feed_shows(hud: Control, text: String) -> bool:
+	var feed := hud.get_node_or_null("ChatFeed") as PanelContainer
+	if feed == null or not feed.visible:
+		return false
+	return _find_label_containing(feed, text) != null
+
+
+func _first_rich_text(node: Node) -> RichTextLabel:
+	if node is RichTextLabel:
+		return node as RichTextLabel
+	for child in node.get_children():
+		var found := _first_rich_text(child)
+		if found != null:
+			return found
+	return null
+
+
+func _modal_panel_for_title(hud: Control, title_prefix: String) -> Control:
+	var title := _find_label_starting_at(hud, title_prefix)
+	if title == null:
+		return null
+	var node: Node = title
+	while node != null and not (node is PanelContainer):
+		node = node.get_parent()
+	if node == null:
+		return null
+	return node as Control
+
+
+func _modal_panel_fits_viewport(hud: Control, title_prefix: String) -> bool:
+	var panel := _modal_panel_for_title(hud, title_prefix)
+	if panel == null:
+		return false
+	var bounds := panel.get_global_rect()
+	var viewport := Rect2(Vector2.ZERO, hud.get_viewport_rect().size)
+	return bounds.position.x >= viewport.position.x - 0.5 \
+			and bounds.position.y >= viewport.position.y - 0.5 \
+			and bounds.end.x <= viewport.end.x + 0.5 \
+			and bounds.end.y <= viewport.end.y + 0.5
+
+
+func _modal_contents_fit_panel(hud: Control, title_prefix: String) -> bool:
+	var panel := _modal_panel_for_title(hud, title_prefix)
+	if panel == null:
+		return false
+	return _controls_fit_within(panel, panel.get_global_rect())
+
+
+func _phone_messages_use_modal_width(hud: Control) -> bool:
+	var sender := _find_label_starting_at(hud, "CITY WIRE")
+	if sender == null:
+		return false
+	var node: Node = sender
+	while node != null and not (node is PanelContainer):
+		node = node.get_parent()
+	if node == null:
+		return false
+	var message_panel := node as Control
+	while node != null and not (node is ScrollContainer):
+		node = node.get_parent()
+	if node == null:
+		return false
+	var scroll := node as Control
+	return message_panel.get_global_rect().size.x >= scroll.get_global_rect().size.x - 4.0
+
+
+func _count_nodes_with_script(node: Node, script_path: String) -> int:
+	var count := 0
+	var script: Variant = node.get_script()
+	if script is Script and script.resource_path == script_path:
+		count += 1
+	for child in node.get_children():
+		count += _count_nodes_with_script(child, script_path)
+	return count
+
+
+func _has_label3d_text(node: Node, text: String) -> bool:
+	if node is Label3D and (node as Label3D).text.contains(text):
+		return true
+	for child in node.get_children():
+		if _has_label3d_text(child, text):
+			return true
+	return false
+
+
 func _ready() -> void:
 	await get_tree().process_frame
+	GameState.lock_ui()
 	GameState.new_game()  # deterministic start, clears any prior save
+	_check(not GameState.is_ui_locked(), "new_game clears stale UI locks")
 	var main: Node2D = load("res://scenes/main.tscn").instantiate()
 	add_child(main)
 	await get_tree().process_frame
@@ -22,6 +171,33 @@ func _ready() -> void:
 	var hud: Control = main.get_node("UILayer/HUD")
 	var shop: Panel = main.get_node("UILayer/Shop")
 	var terminal: Panel = main.get_node("UILayer/Terminal")
+
+	# --- HUD controls ---
+	GameState.notify("STATIC FEED CHECK", GameState.COL_INFO)
+	await get_tree().process_frame
+	_check(_hud_feed_shows(hud, "STATIC FEED CHECK"), "HUD chat feed persists toast messages")
+	GameState.prompt_changed.emit("Greet a food-cart cook")
+	await get_tree().process_frame
+	_check(_action_prompt_wraps(hud), "action prompt wraps inside action button")
+	GameState.prompt_changed.emit("")
+	_check(hud.get_node_or_null("GodTestButton") != null, "temporary god test button exists")
+
+	# --- modal layout ---
+	hud.close_blocking_ui()
+	hud.show_furnish()
+	var furnish_modal: Dictionary = hud.get("_furnish_modal")
+	for i in 18:
+		hud.call("_add_row", furnish_modal, "Overflow row %02d" % i,
+				"This forces a tall modal so the shared shell must scroll instead of centering content offscreen.",
+				"", true, Callable())
+	await get_tree().process_frame
+	_check(_modal_panel_fits_viewport(hud, "FURNISH"), "tall modal panel fits viewport")
+	_check(_modal_contents_fit_panel(hud, "FURNISH"), "tall modal contents stay inside panel")
+	hud.close_blocking_ui()
+	hud.call("_open_phone")
+	await get_tree().process_frame
+	_check(_phone_messages_use_modal_width(hud), "burner phone messages use modal width")
+	hud.close_blocking_ui()
 
 	# --- shop / upgrades ---
 	_check(not GameState.buy_upgrade("used_laptop"), "laptop should be unaffordable at start")
@@ -35,7 +211,20 @@ func _ready() -> void:
 	shop.close_shop()
 
 	# --- terminal commands ---
+	GameState.cpu = 10
+	GameState.max_cpu = 18
+	GameState.energy = 0
+	GameState.max_energy = 16
+	GameState.heat = 89
+	GameState.cash = 456
 	terminal.open()
+	GameState.stats_changed.emit()
+	await get_tree().process_frame
+	_check(_controls_fit_within(terminal, terminal.get_global_rect()), "terminal controls fit viewport under long stats")
+	GameState.heat = 0
+	GameState.energy = 5
+	GameState.cpu = GameState.max_cpu
+	GameState.stats_changed.emit()
 	for cmd in ["help", "scan", "inspect coffee_shop_router", "inspect nope", "collect", "clear"]:
 		terminal._on_submit(cmd)
 	GameState.reputation = 60  # pin success chance at the 95% clamp
@@ -80,23 +269,44 @@ func _ready() -> void:
 	cash_before = GameState.cash
 	_check(GameState.accept_job("fix_router"), "accept a gig (no energy spent)")
 	_check(GameState.has_active_job("fix_router"), "gig is now active")
-	_check("fix_router" in GameState.active_jobs_in("plaza"), "gig is flagged in its target district")
+	var first_job: Dictionary = GameState.active_jobs[0]
+	_check(first_job.get("template", "") == "fix_router", "accepted gig becomes a generated instance")
+	_check(first_job.get("district", "") != "home", "generated gig never targets the apartment")
+	_check(first_job.has("pos") and first_job.pos.size() == 2, "generated gig has a field position")
+	_check(first_job.get("steps_total", 0) >= 2, "generated gig requires multiple field steps")
+	_check(first_job.get("cash", 0) != GameData.JOBS["fix_router"].cash or first_job.get("energy", 0) != GameData.JOBS["fix_router"].energy,
+			"generated gig randomizes reward or effort")
+	_check(first_job in GameState.active_jobs_in(first_job.district), "gig is flagged in its target district")
 	_check(not GameState.accept_job("fix_router"), "can't re-accept the same gig")
 	var e_job := GameState.energy
-	_check(GameState.complete_job("fix_router"), "complete the gig at its marker")
-	_check(GameState.cash == cash_before + 20, "gig paid $20 on completion")
-	_check(GameState.energy == e_job - 2, "gig spent its energy when done, not when accepted")
+	_check(GameState.complete_job(first_job.uid), "work the first gig step at its marker")
+	_check(GameState.has_active_job("fix_router"), "multi-step gig stays active after first step")
+	_check(GameState.cash == cash_before, "multi-step gig does not pay until final step")
+	_check(GameState.energy == e_job - first_job.energy, "gig spent its energy when worked, not when accepted")
+	while GameState.has_active_job("fix_router"):
+		GameState.energy = 9
+		_check(GameState.complete_job(first_job.uid), "complete another gig step")
+	_check(GameState.cash > cash_before, "gig paid on final step")
 	_check(not GameState.has_active_job("fix_router"), "completed gig clears from active")
-	# Two-gig cap.
+	GameState.energy = 9
+	GameState.cpu = 0
+	_check(GameState.accept_job("neighbor_wifi"), "accept a tech gig")
+	var tech_job: Dictionary = GameState.active_jobs[0]
+	_check(tech_job.get("cpu", 0) > 0, "tech gig generated a CPU requirement")
+	_check(not GameState.complete_job(tech_job.uid), "tech gig cannot be completed without CPU")
+	GameState.active_jobs.clear()
+	GameState.cpu = GameState.max_cpu
+	# No active-gig cap.
 	GameState.accept_job("fix_router")
 	GameState.accept_job("ewaste_run")
-	_check(GameState.active_jobs.size() == 2, "can hold two gigs at once")
-	_check(not GameState.accept_job("courier"), "third gig refused at the two-gig cap")
+	_check(GameState.accept_job("courier"), "third gig accepted after removing the queue cap")
+	_check(GameState.active_jobs.size() == 3, "can hold more than two gigs at once")
 	# Persist across save/load.
 	GameState.save_game()
 	GameState.active_jobs = []
 	GameState.load_game()
-	_check(GameState.active_jobs.size() == 2, "active gigs persist across save/load")
+	_check(GameState.active_jobs.size() == 3, "active gigs persist across save/load")
+	_check(GameState.active_jobs[0] is Dictionary, "generated active gigs persist as instance data")
 	GameState.active_jobs.clear()
 
 	# --- quests ---
@@ -251,6 +461,20 @@ func _ready() -> void:
 	_check(GameState.max_energy == rep_maxe + 2, "rank reward raises max Energy")
 	GameState.reputation = 120  # Legend, the top rank
 	_check(GameState.next_status().is_empty(), "no next status at top rank")
+	GameState.cash = 0
+	GameState.reputation = 0
+	GameState.status_seen = 0
+	GameState.grant_debug_god_mode()
+	_check(GameState.cash == 99999, "god test mode grants cash")
+	_check(GameState.status_title() == "Legend", "god test mode grants max status")
+	_check(GameState.status_seen == GameState.status_index(), "god test mode suppresses rank reward spam")
+	var plaza3d: Node3D = load("res://scenes/iso/districts/plaza_3d.tscn").instantiate()
+	add_child(plaza3d)
+	plaza3d.build(FakeMain.new())
+	await get_tree().process_frame
+	_check(_has_label3d_text(plaza3d, "Pix\n(starter mentor)"), "named NPC labels include role descriptions")
+	remove_child(plaza3d)
+	plaza3d.queue_free()
 
 	# --- heat / wanted tiers ---
 	GameState.upgrades.erase("vpn")  # isolate from earlier VPN purchase
@@ -296,6 +520,67 @@ func _ready() -> void:
 	_check(GameState.buy_upgrade("quantum_rig"), "buy quantum rig")
 	_check(GameState.max_cpu == hw_cpu + 4 + 8 + 12 + 18, "hardware tiers stack CPU")
 	_check(GameState.max_cpu >= GameData.TARGETS["ai_datacenter"]["cpu_cost"], "endgame target is reachable")
+	for npc_id in GameData.NPCS:
+		_check(str(GameData.NPCS[npc_id].get("role", "")) != "", "%s has a role label" % npc_id)
+	for district_id in ["plaza", "market", "underpass", "corp_row", "darknet", "drowned_quarter"]:
+		_check(district_id in GameData.NPC_SCHEDULE["riot"], "Riot has a scheduled encounter in %s" % district_id)
+		var rlines: Array = NpcDialogs.riot_lines_for_district(district_id)
+		_check(rlines.size() >= 2 and str(rlines[0]).contains("Riot:"), "Riot has district dialogue in %s" % district_id)
+		_check(GameData.RIOT_CREW_BY_DISTRICT.has(district_id), "R10T crew has a mini-boss in %s" % district_id)
+		var crew_id: String = GameData.RIOT_CREW_BY_DISTRICT[district_id]
+		_check(GameData.ENEMIES.has(crew_id), "R10T crew mini-boss enemy exists for %s" % district_id)
+		_check(GameData.ENEMIES[crew_id].get("crew", "") == "r10t", "mini-boss is tagged as R10T crew")
+		var crew_loot: Dictionary = GameData.ENEMIES[crew_id].get("loot", {})
+		_check(crew_loot.has("gear") and GameData.GEAR.has(crew_loot.gear), "mini-boss drops notable gear in %s" % district_id)
+		_check(GameData.GEAR[crew_loot.gear].get("crew_drop", false), "mini-boss gear is marked as crew-drop progression gear")
+	_check(GameData.TARGETS["corp_mail_relay"].get("district_tier", 0) >= 4, "corp mail relay carries a district tier")
+	_check(GameData.TARGETS["corp_mail_relay"].get("required_gear", "") == "rig_tunnel_splice",
+			"corp row hacking expects the previous district boss rig")
+	GameState.owned_gear = [] as Array[String]
+	GameState.gear = {}
+	var corp_odds_without: float = terminal.call("_chance", GameData.TARGETS["corp_mail_relay"])
+	GameState.owned_gear = ["rig_tunnel_splice"] as Array[String]
+	GameState.equip_gear("rig_tunnel_splice")
+	var corp_odds_with: float = terminal.call("_chance", GameData.TARGETS["corp_mail_relay"])
+	_check(corp_odds_with > corp_odds_without + 0.20, "previous district boss rig materially improves next-tier hack odds")
+	terminal.open()
+	terminal._on_submit("scan")
+	var term_output := _first_rich_text(terminal)
+	var term_text := term_output.get_parsed_text() if term_output != null else ""
+	_check(term_text.contains("tier 4") and term_text.contains("Corp Row"),
+			"terminal scan shows target district tier")
+	terminal._on_submit("inspect corp_mail_relay")
+	term_text = term_output.get_parsed_text() if term_output != null else ""
+	_check(term_text.contains("recommended rig") and term_text.contains("Tunnel Splice"),
+			"terminal inspect names the progression rig for that tier")
+	terminal.close_terminal()
+	GameState.inventory.clear()
+	GameState.add_item("stolen_data", 2)
+	GameState.add_item("old_gpu", 6)
+	GameState.cash = 1000
+	GameState.heat = 60
+	GameState.fixer_used = false
+	var service_cash_before := GameState.cash
+	var service_heat_before := GameState.heat
+	var service_data_before: int = GameState.inventory.get("stolen_data", 0)
+	var service_parts_before: int = GameState.inventory.get("old_gpu", 0)
+	var service_skill_before := GameState.skill_points
+	NpcDialogs.lines_for("vex")
+	NpcDialogs.lines_for("marlowe")
+	NpcDialogs.lines_for("tess")
+	NpcDialogs.lines_for("sparks")
+	NpcDialogs.lines_for("ozark")
+	_check(NpcDialogs.needs_confirmation("vex"), "Vex requires confirmation before fencing data")
+	_check(NpcDialogs.needs_confirmation("marlowe"), "Marlowe requires confirmation before taking cash")
+	_check(NpcDialogs.needs_confirmation("tess"), "Tess requires confirmation before training")
+	_check(NpcDialogs.needs_confirmation("sparks"), "Sparks requires confirmation before buying parts")
+	_check(NpcDialogs.needs_confirmation("ozark"), "Ozark requires confirmation before taking bounty parts")
+	_check(GameState.cash == service_cash_before, "NPC dialog previews do not spend or pay cash")
+	_check(GameState.heat == service_heat_before, "NPC dialog previews do not scrub heat")
+	_check(GameState.inventory.get("stolen_data", 0) == service_data_before, "NPC dialog previews do not consume items")
+	_check(GameState.inventory.get("old_gpu", 0) == service_parts_before, "NPC dialog previews do not consume junk parts")
+	_check(GameState.skill_points == service_skill_before, "NPC dialog previews do not grant skill points")
+	GameState.inventory.clear()
 	# Vex fences Stolen Data at a premium.
 	GameState.inventory.erase("stolen_data")  # ignore any drops from earlier hacks
 	GameState.add_item("stolen_data", 3)
@@ -374,6 +659,16 @@ func _ready() -> void:
 	_check(GameState.cash >= con_cash + GameData.CONTRACTS["bounty_bank"]["cash"], "contract pays its bonus")
 	_check("bounty_bank" in GameState.completed_contracts, "contract marked complete")
 	_check(GameState.active_contract == "", "active contract cleared on completion")
+	var final_hint: String = GameState.final_contract_hint() if GameState.has_method("final_contract_hint") else ""
+	_check(final_hint.contains("Kill the machine") and final_hint.contains("ai_datacenter"),
+			"trunk hint names the final contract and target")
+	GameState.completed_contracts.append(GameState.final_contract_id())
+	GameState.inventory.erase("r10t_root_key")
+	_check(not GameState.trunk_ready(), "final contract alone does not unlock the trunk")
+	_check(GameState.trunk_prompt().contains("R10T"), "trunk prompt names the missing Riot key")
+	GameState.add_item("r10t_root_key")
+	_check(GameState.trunk_ready(), "R10T key plus final contract unlocks the trunk")
+	_check(GameState.trunk_prompt() == "Jack into the trunk", "ready trunk uses jack-in prompt")
 
 	# --- corp jobs are a separate board ---
 	var corp_count := 0
@@ -381,6 +676,10 @@ func _ready() -> void:
 		if GameData.JOBS[jid].get("board", "plaza") == "corp":
 			corp_count += 1
 	_check(corp_count >= 2, "corp gig board has its own jobs")
+	_check(GameData.TRASH_TABLES["underpass"].scrap == [3, 8], "underpass trash cash is tuned down")
+	_check(GameData.TRASH_TABLES["market"].scrap == [2, 5], "market trash cash is tuned down")
+	_check(GameData.TRASH_TABLES["corp_row"].scrap == [2, 4], "corp row trash cash is tuned down")
+	_check(GameData.TRASH_TABLES["default"].scrap == [2, 4], "default trash cash is tuned down")
 
 	# --- ambient wanderers ---
 	_check(GameState.ambient.size() == GameData.WANDERERS.size(), "ambient roster seeded")
@@ -487,6 +786,43 @@ func _ready() -> void:
 	cs1.init({"attack": 100, "defense": 5, "integrity": 50, "crit": 0.0, "stealth": 0}, "script_kid", 1)
 	cs1.player_exploit()
 	_check(cs1.outcome == cs1.WIN, "combat: strong player wins")
+	var combat_panel: Panel = load("res://scenes/ui/combat.tscn").instantiate()
+	add_child(combat_panel)
+	combat_panel.visible = true
+	var boss_session = CombatSession.new()
+	boss_session.init({"attack": 999, "defense": 99, "integrity": 999, "crit": 0.0, "stealth": 0}, "r10t", 1)
+	boss_session.player_exploit()
+	combat_panel.set("_session", boss_session)
+	GameState.inventory.erase("r10t_root_key")
+	combat_panel.call("_award_loot")
+	await get_tree().process_frame
+	var burst := combat_panel.get_node_or_null("BossBurstOverlay")
+	_check(burst != null and burst.visible, "combat: R10T win shows boss burst overlay")
+	_check(_find_label_containing(combat_panel, "R10T DOWN") != null, "combat: boss burst names the defeated boss")
+	_check(GameState.inventory.get("r10t_root_key", 0) == 1, "R10T drops the trunk root key")
+	remove_child(combat_panel)
+	combat_panel.queue_free()
+	var early_r10t = CombatSession.new()
+	early_r10t.init({"attack": 18, "defense": 18, "integrity": 80, "crit": 0.15, "stealth": 3,
+			"endgame_loadout": false}, "r10t", 4)
+	var early_guard := 0
+	while early_r10t.outcome == early_r10t.ONGOING and early_guard < 80:
+		early_r10t.player_exploit()
+		early_guard += 1
+	_check(early_r10t.outcome == early_r10t.LOSE, "combat: R10T is overpowering before top-end gear")
+	_check(early_r10t.enemy_max >= 180 and early_r10t.enemy.attack >= 26, "combat: R10T gets an early-game overpower stat package")
+	var geared_r10t = CombatSession.new()
+	geared_r10t.init({"attack": 22, "defense": 18, "integrity": 95, "crit": 0.20, "stealth": 3,
+			"endgame_loadout": true}, "r10t", 4)
+	var geared_guard := 0
+	while geared_r10t.outcome == geared_r10t.ONGOING and geared_guard < 80:
+		geared_r10t.player_exploit()
+		geared_guard += 1
+	_check(geared_r10t.outcome == geared_r10t.WIN, "combat: top-end gear makes R10T beatable")
+	GameState.owned_gear = ["rig_zeroday", "fw_black", "imp_ghost"] as Array[String]
+	GameState.gear = {"rig": "rig_zeroday", "firewall": "fw_black", "implant": "imp_ghost"}
+	GameState.upgrades = ["used_laptop", "ram_upgrade", "workstation", "server_rack", "quantum_rig"] as Array[String]
+	_check(GameState.has_endgame_loadout(), "top-end purchased gear marks player ready for R10T")
 	# Hopeless player vs the boss → LOSE within a bounded number of turns.
 	var cs2 = CombatSession.new()
 	cs2.init({"attack": 0, "defense": 0, "integrity": 6, "crit": 0.0, "stealth": 0}, "r10t", 1)
@@ -576,12 +912,25 @@ func _ready() -> void:
 	_check(GameState.max_energy == e0 + 3, "smart_bed raises max energy at purchase")
 	_check(not GameState.buy_furniture("smart_bed"), "can't double-buy furniture")
 	_check(GameState.style_score() == GameData.FURNITURE["smart_bed"].style, "Style reflects owned furniture")
+	var home_script: Script = load("res://scripts/iso/districts/home_3d.gd")
+	var furniture_visuals: Dictionary = home_script.get_script_constant_map().get("FURNITURE_VISUALS", {})
+	_check(not furniture_visuals.has("smart_bed"), "smart bed upgrade does not render a second bed")
 	GameState.buy_furniture("vpn_rack")
 	GameState.buy_furniture("server_closet")
 	_check(GameState.furniture_perk("cool") == 4, "VPN rack adds heat cooldown")
 	_check(GameState.furniture_perk("income") == 20, "server closet adds daily income")
 	GameState.reputation = 0
 	_check(not GameState.buy_furniture("arcade_cab"), "high-status furniture is gated")
+
+	# --- endgame district ambience ---
+	var drowned: Node3D = load("res://scenes/iso/districts/drowned_quarter_3d.tscn").instantiate()
+	add_child(drowned)
+	drowned.build(FakeMain.new())
+	await get_tree().process_frame
+	_check(_count_nodes_with_script(drowned, "res://scripts/iso/wanderer_3d.gd") == 0,
+			"drowned quarter does not spawn wandering NPCs")
+	remove_child(drowned)
+	drowned.queue_free()
 	GameState.reputation = 999
 	GameState.cash = 99999
 	for fid in GameData.FURNITURE:

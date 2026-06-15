@@ -7,7 +7,6 @@ extends "res://scripts/iso/district_3d.gd"
 # v2). Keyed by GameData.FURNITURE id. `y` overrides the default (size.y/2) for
 # wall-mounted (raised) and floor (flat) pieces.
 const FURNITURE_VISUALS := {
-	"smart_bed": {"pos": Vector2(3.45, 2.6), "size": Vector3(0.9, 0.32, 1.7), "color": Color(0.28, 0.33, 0.5)},
 	"espresso": {"pos": Vector2(5.7, 1.5), "size": Vector3(0.45, 0.5, 0.4), "color": Color(0.18, 0.18, 0.2)},
 	"vpn_rack": {"pos": Vector2(8.75, 2.1), "size": Vector3(0.5, 1.4, 0.5), "color": Color(0.1, 0.12, 0.14)},
 	"server_closet": {"pos": Vector2(8.75, 3.4), "size": Vector3(0.6, 1.5, 0.6), "color": Color(0.13, 0.15, 0.17)},

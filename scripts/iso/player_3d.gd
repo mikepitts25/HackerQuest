@@ -6,7 +6,9 @@ extends CharacterBody3D
 ## Interaction mirrors player.gd: a reach volume tracks nearby Interactable3D
 ## areas, the nearest one owns the prompt, and interact() fires its Callable.
 
-const SPEED := 2.8
+# Big City pass: districts are ~10x larger, so the base walk is faster to keep
+# traversal from feeling tedious (boards still multiply on top, see _move_speed).
+const SPEED := 5.0
 const InteractableScript := preload("res://scripts/iso/interactable_3d.gd")
 
 # The iso camera yaw is fixed at 45 deg; these map screen-space input axes

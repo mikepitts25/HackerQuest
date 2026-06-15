@@ -27,6 +27,8 @@ const SAVE_VERSION := 1
 const TRACE_BASE_SECONDS := 30.0
 const TRACE_ESCAPE_HEAT := 75
 const HIGH_RISK_HACK_HEAT := 20
+const DEBUG_GOD_CASH := 99999
+const TRUNK_KEY_ITEM := "r10t_root_key"
 
 # Fields written to / read from the save file. Listed once so save and load
 # can't drift apart. Dictionaries/arrays of plain data round-trip through JSON;
@@ -40,7 +42,7 @@ const PERSISTED := [
 	"active_contract", "completed_contracts", "owned_cosmetics", "equipped", "active_jobs",
 	"mastery", "favors_done", "goods", "handle", "skin_tone", "background",
 	"scrap_bounty_done", "owned_gear", "gear", "r10t_beaten", "owned_furniture",
-	"music_vol", "sfx_vol",
+	"defeated_crew_bosses", "music_vol", "sfx_vol",
 ]
 
 # True until a save is loaded; lets the main scene pick intro vs "welcome back".
@@ -50,6 +52,7 @@ var owned_gear: Array[String] = []
 # Set once you beat R10T in combat (G6) — gates the rare boss encounter so the
 # rival only ambushes you once.
 var r10t_beaten := false
+var defeated_crew_bosses: Array[String] = []
 # Furniture you've bought for your apartment (Apartments v2). Drives perks +
 # Style score; rendered in home_3d.
 var owned_furniture: Array[String] = []
@@ -118,10 +121,9 @@ var completed_contracts: Array = []
 var music_vol := 0.8
 var sfx_vol := 0.9
 
-# Field gigs you've accepted from the job board (up to MAX_ACTIVE_JOBS). Each is
-# a GameData.JOBS id; you complete it at a marker in its target district.
+# Generated field gigs you've accepted from the job board. Each entry is a
+# plain Dictionary so it saves cleanly: template, uid, district, pos, step, etc.
 var active_jobs: Array = []
-const MAX_ACTIVE_JOBS := 2
 var _laptop_nudged := false  # one-time "you can afford the laptop" toast
 
 # Cosmetics: which the player owns, and what's worn per slot. Free defaults are
@@ -209,6 +211,7 @@ func load_game() -> bool:
 		heat = trace_escape_heat()
 	# Don't retroactively re-reward ranks already earned in the loaded run.
 	status_seen = maxi(status_seen, status_index())
+	_normalize_active_jobs()
 	is_new_game = false
 	stats_changed.emit()
 	quest_changed.emit()
@@ -217,6 +220,8 @@ func load_game() -> bool:
 
 
 func new_game() -> void:
+	_ui_locks = 0
+	touch_vector = Vector2.ZERO
 	cash = 15
 	energy = 10
 	max_energy = 10
@@ -259,6 +264,7 @@ func new_game() -> void:
 	owned_gear = [] as Array[String]
 	gear = {}
 	r10t_beaten = false
+	defeated_crew_bosses = [] as Array[String]
 	owned_furniture = [] as Array[String]
 	_reset_trace()
 	owned_cosmetics = ["hoodie_gray", "hat_none"] as Array[String]
@@ -275,7 +281,7 @@ func new_game() -> void:
 # untyped. Re-cast the fields where that matters.
 func _coerce_loaded(field: String, value: Variant) -> Variant:
 	match field:
-		"upgrades", "owned_cosmetics", "owned_gear", "owned_furniture":
+		"upgrades", "owned_cosmetics", "owned_gear", "owned_furniture", "defeated_crew_bosses":
 			var typed: Array[String] = []
 			for v in value:
 				typed.append(str(v))
@@ -321,6 +327,38 @@ func owned(id: String) -> bool:
 func add_cash(amount: int) -> void:
 	cash = maxi(0, cash + amount)
 	stats_changed.emit()
+
+
+# Buy a meal at a street eatery (Big City pass): spend cash to restore energy
+# without sleeping. A handy cash sink in the bigger districts; refuses politely
+# when you're already full or short on cash.
+func buy_meal(place: String, cost: int, energy_gain: int) -> void:
+	if energy >= max_energy:
+		notify("Not hungry — energy's already full.", COL_WARN)
+		return
+	if cash < cost:
+		notify("Not enough cash for %s ($%d)." % [place, cost], COL_WARN)
+		return
+	cash -= cost
+	var gain: int = mini(energy_gain, max_energy - energy)
+	energy += gain
+	Audio.sfx("cash")
+	notify("%s — +%d Energy (-$%d)" % [place, gain, cost], COL_GOOD)
+	stats_changed.emit()
+
+
+func max_reputation() -> int:
+	return int(GameData.STATUS_RANKS[GameData.STATUS_RANKS.size() - 1]["rep"])
+
+
+# TEMP DEBUG: remove before production. Lets playtests jump to endgame economy.
+func grant_debug_god_mode() -> void:
+	cash = DEBUG_GOD_CASH
+	reputation = max_reputation()
+	status_seen = status_index()
+	notify("GOD TEST MODE: $%d and %s status." % [cash, status_title()], COL_WARN)
+	stats_changed.emit()
+	quest_changed.emit()
 
 
 func use_energy(amount: int) -> bool:
@@ -654,6 +692,14 @@ func add_item(id: String, count: int = 1) -> void:
 	stats_changed.emit()
 
 
+func is_key_item(id: String) -> bool:
+	return GameData.ITEMS.has(id) and bool(GameData.ITEMS[id].get("key_item", false))
+
+
+func is_junk_item(id: String) -> bool:
+	return GameData.ITEMS.has(id) and not is_key_item(id)
+
+
 # Spend an item (combat programs, future crafting). Returns false if you don't
 # have enough. Unlike use_consumable this applies no effect — the caller does.
 func consume_item(id: String, count := 1) -> bool:
@@ -668,6 +714,9 @@ func consume_item(id: String, count := 1) -> bool:
 
 func sell_item(id: String) -> bool:
 	if inventory.get(id, 0) <= 0:
+		return false
+	if is_key_item(id):
+		notify("%s is too important to sell." % GameData.ITEMS[id]["name"], COL_WARN)
 		return false
 	inventory[id] -= 1
 	if inventory[id] <= 0:
@@ -710,6 +759,62 @@ func equip_gear(id: String) -> void:
 	stats_changed.emit()
 
 
+func grant_gear(id: String, auto_equip := true) -> bool:
+	if not GameData.GEAR.has(id):
+		return false
+	var fresh := not owns_gear(id)
+	if fresh:
+		owned_gear.append(id)
+	if auto_equip:
+		equip_gear(id)
+	else:
+		stats_changed.emit()
+	return fresh
+
+
+func has_endgame_loadout() -> bool:
+	return "quantum_rig" in upgrades \
+		and owns_gear("rig_zeroday") \
+		and owns_gear("fw_black") \
+		and owns_gear("imp_ghost")
+
+
+func crew_boss_defeated(enemy_id: String) -> bool:
+	return enemy_id in defeated_crew_bosses
+
+
+func mark_crew_boss_defeated(enemy_id: String) -> void:
+	if enemy_id != "" and not crew_boss_defeated(enemy_id):
+		defeated_crew_bosses.append(enemy_id)
+
+
+func target_required_gear(t: Dictionary) -> String:
+	return str(t.get("required_gear", ""))
+
+
+func target_has_required_gear(t: Dictionary) -> bool:
+	var id := target_required_gear(t)
+	return id == "" or owns_gear(id)
+
+
+func target_required_gear_equipped(t: Dictionary) -> bool:
+	var id := target_required_gear(t)
+	if id == "":
+		return true
+	return gear.get(GameData.GEAR[id].slot, "") == id
+
+
+func target_tier_gear_modifier(t: Dictionary) -> float:
+	var id := target_required_gear(t)
+	if id == "":
+		return 0.0
+	if target_required_gear_equipped(t):
+		return 0.20
+	if owns_gear(id):
+		return 0.08
+	return -0.12
+
+
 func gear_stat(slot: String, key: String) -> float:
 	var id: String = gear.get(slot, "")
 	return float(GameData.GEAR[id].get(key, 0)) if id != "" else 0.0
@@ -746,6 +851,7 @@ func combat_stats() -> Dictionary:
 		"integrity": total_integrity(),
 		"crit": total_crit(),
 		"stealth": skill("stealth"),
+		"endgame_loadout": has_endgame_loadout(),
 	}
 
 
@@ -762,8 +868,19 @@ var scrap_bounty_done := false  # Ozark's daily; cleared on sleep
 
 
 # Sparks the parts dealer buys all your loot at once, +10% over the counter.
+func bulk_sell_loot_quote() -> Dictionary:
+	var junk: Array = inventory.keys().filter(func(k): return is_junk_item(k) and k != "stolen_data")
+	var count := 0
+	var total := 0
+	for id in junk:
+		var n: int = inventory[id]
+		count += n
+		total += int(round(GameData.ITEMS[id]["price"] * 1.1 * hustle_mult())) * n
+	return {"count": count, "total": total}
+
+
 func bulk_sell_loot() -> Dictionary:
-	var junk: Array = inventory.keys().filter(func(k): return GameData.ITEMS.has(k) and k != "stolen_data")
+	var junk: Array = inventory.keys().filter(func(k): return is_junk_item(k) and k != "stolen_data")
 	if junk.is_empty():
 		return {"count": 0, "total": 0}
 	var count := 0
@@ -780,11 +897,17 @@ func bulk_sell_loot() -> Dictionary:
 
 
 # Tess the trainer sells you a skill point; price climbs as you invest.
-func train_skill() -> Dictionary:
+func train_skill_quote() -> Dictionary:
 	var ranks := 0
 	for k in skills:
 		ranks += int(skills[k])
 	var cost := 150 + ranks * 120
+	return {"cost": cost, "ok": cash >= cost}
+
+
+func train_skill() -> Dictionary:
+	var quote := train_skill_quote()
+	var cost: int = quote.cost
 	if cash < cost:
 		return {"ok": false, "cost": cost}
 	cash -= cost
@@ -795,16 +918,24 @@ func train_skill() -> Dictionary:
 
 # Ozark the scrap boss runs a daily bounty: bring him parts for cash + REP.
 const SCRAP_BOUNTY_NEED := 5
-func scrap_bounty() -> Dictionary:
+func scrap_bounty_quote() -> Dictionary:
 	if scrap_bounty_done:
 		return {"ok": false, "reason": "done"}
-	var junk: Array = inventory.keys().filter(func(k): return GameData.ITEMS.has(k) and k != "stolen_data")
+	var junk: Array = inventory.keys().filter(func(k): return is_junk_item(k) and k != "stolen_data")
 	var have := 0
 	for id in junk:
 		have += int(inventory[id])
 	if have < SCRAP_BOUNTY_NEED:
 		return {"ok": false, "reason": "short", "have": have, "need": SCRAP_BOUNTY_NEED}
+	return {"ok": true, "have": have, "need": SCRAP_BOUNTY_NEED, "reward": 120}
+
+
+func scrap_bounty() -> Dictionary:
+	var quote := scrap_bounty_quote()
+	if not quote.ok:
+		return quote
 	# Consume the cheapest parts first.
+	var junk: Array = inventory.keys().filter(func(k): return is_junk_item(k) and k != "stolen_data")
 	junk.sort_custom(func(a, b): return GameData.ITEMS[a]["price"] < GameData.ITEMS[b]["price"])
 	var taken := 0
 	for id in junk:
@@ -813,7 +944,7 @@ func scrap_bounty() -> Dictionary:
 			if inventory[id] <= 0:
 				inventory.erase(id)
 			taken += 1
-	var reward := 120
+	var reward: int = quote.reward
 	scrap_bounty_done = true
 	add_cash(reward)
 	add_rep(2)
@@ -980,25 +1111,66 @@ func gig_risk(id: String) -> float:
 
 # --- Field gigs (accept from the board, do them out in the city) -------------
 
+const JOB_DISTRICT_BOUNDS := {
+	"plaza": [2.0, 2.0, 20.0, 13.0],
+	"market": [2.0, 2.0, 18.0, 12.0],
+	"underpass": [1.5, 1.5, 13.5, 9.5],
+	"corp_row": [2.0, 2.0, 18.0, 12.0],
+	"darknet": [2.0, 2.0, 16.0, 11.0],
+	"drowned_quarter": [1.5, 1.5, 11.0, 8.5],
+}
+const JOB_GOALS := {
+	"wifi": [
+		{"prompt": "Spoof the relay", "objective": "spoof the access relay"},
+		{"prompt": "Trace the signal", "objective": "trace the weak signal"},
+		{"prompt": "Patch the handshake", "objective": "patch the handshake"},
+	],
+	"drop": [
+		{"prompt": "Grab the package", "objective": "grab the package"},
+		{"prompt": "Swap the bag", "objective": "swap the dead drop"},
+		{"prompt": "Stash the goods", "objective": "stash the goods"},
+	],
+	"meet": [
+		{"prompt": "Meet the contact", "objective": "meet the contact"},
+		{"prompt": "Verify the phrase", "objective": "verify the code phrase"},
+		{"prompt": "Shake the tail", "objective": "shake the tail"},
+	],
+	"heist": [
+		{"prompt": "Plant the tap", "objective": "plant the tap"},
+		{"prompt": "Lift the cache", "objective": "lift the data cache"},
+		{"prompt": "Burn the logs", "objective": "burn the logs"},
+	],
+	"recon": [
+		{"prompt": "Case the spot", "objective": "case the spot"},
+		{"prompt": "Tag the camera", "objective": "tag the camera"},
+		{"prompt": "Map the patrol", "objective": "map the patrol"},
+	],
+}
+
+
 func has_active_job(id: String) -> bool:
-	return id in active_jobs
+	for job in active_jobs:
+		var j := _active_job_dict(job)
+		if j.get("template", "") == id or j.get("uid", "") == id:
+			return true
+	return false
 
 
 func active_jobs_in(district: String) -> Array:
+	_normalize_active_jobs()
 	var out: Array = []
-	for jid in active_jobs:
-		if GameData.JOBS.get(jid, {}).get("district", "") == district:
-			out.append(jid)
+	for job in active_jobs:
+		var j := _active_job_dict(job)
+		if j.get("district", "") == district:
+			out.append(j)
 	return out
 
 
 # Take a gig off the board. Doesn't spend energy — that happens when you do the
 # work at the marker. Returns false (with a toast) if you can't take it.
 func accept_job(id: String) -> bool:
-	if id in active_jobs:
-		return false
-	if active_jobs.size() >= MAX_ACTIVE_JOBS:
-		notify("Two gigs is your limit — finish one first.", COL_WARN)
+	_normalize_active_jobs()
+	if has_active_job(id):
 		return false
 	var job: Dictionary = GameData.JOBS[id]
 	if status_index() < job.get("status_req", 0):
@@ -1007,23 +1179,27 @@ func accept_job(id: String) -> bool:
 	if job.get("req_computer", false) and not has_computer:
 		notify("You'll need a computer for that gig.", COL_WARN)
 		return false
-	active_jobs.append(id)
-	var dname: String = GameData.DISTRICTS[job.district]["name"]
-	notify("Gig accepted: %s — head to %s." % [job.name, dname], COL_INFO)
+	var inst := _generate_job_instance(id)
+	active_jobs.append(inst)
+	var dname: String = GameData.DISTRICTS[inst.district]["name"]
+	notify("Gig accepted: %s — %s in %s." % [inst.name, inst.objective, dname], COL_INFO)
 	stats_changed.emit()
 	jobs_changed.emit()
 	save_game()
 	return true
 
 
-# Do the work at the gig's marker. Spends energy and resolves the risk/reward
-# bet here. Returns true if the gig was attempted (consumed), false if you
-# couldn't (e.g. out of energy — already toasted). Mirrors the old instant
-# payout, with the pre/post-laptop XP taper.
+# Do one step of a field gig. Most gigs require multiple stops; only the final
+# step resolves pay/risk and clears the job.
 func complete_job(id: String) -> bool:
-	if not (id in active_jobs):
+	_normalize_active_jobs()
+	var idx := _active_job_index(id)
+	if idx < 0:
 		return false
-	var job: Dictionary = GameData.JOBS[id]
+	var job: Dictionary = active_jobs[idx]
+	var cpu_cost: int = job.get("cpu", 0)
+	if cpu_cost > 0 and not spend_cpu(cpu_cost):
+		return false
 	if not use_energy(job.energy):
 		return false
 	var bkind := "jobs_corp" if job.get("board", "plaza") == "corp" else "jobs_plaza"
@@ -1032,8 +1208,18 @@ func complete_job(id: String) -> bool:
 	var xp_clean := 8 if not has_computer else 2
 	var xp_side := 4 if not has_computer else 1
 	add_mastery("corp_row" if bkind == "jobs_corp" else "plaza")
-	active_jobs.erase(id)
-	if randf() < gig_risk(id):
+	job.step = int(job.get("step", 1)) + 1
+	if job.step <= int(job.get("steps_total", 1)):
+		_assign_job_stop(job)
+		active_jobs[idx] = job
+		var dname_next: String = GameData.DISTRICTS[job.district]["name"]
+		notify("Gig step done. Next: %s in %s." % [job.objective, dname_next], COL_INFO)
+		stats_changed.emit()
+		jobs_changed.emit()
+		save_game()
+		return true
+	active_jobs.remove_at(idx)
+	if randf() < float(job.get("risk", 0.0)):
 		var salvage := int(pay * 0.25)
 		add_cash(salvage)
 		add_heat(int(heat_amt * 1.5) + 5)
@@ -1053,6 +1239,119 @@ func complete_job(id: String) -> bool:
 	jobs_changed.emit()
 	save_game()
 	return true
+
+
+func _active_job_index(id: String) -> int:
+	for i in active_jobs.size():
+		var j := _active_job_dict(active_jobs[i])
+		if j.get("uid", "") == id or j.get("template", "") == id:
+			return i
+	return -1
+
+
+func _active_job_dict(job: Variant) -> Dictionary:
+	if job is Dictionary:
+		return job
+	if job is String and GameData.JOBS.has(job):
+		return _generate_job_instance(job)
+	return {}
+
+
+func _normalize_active_jobs() -> void:
+	for i in active_jobs.size():
+		if active_jobs[i] is String:
+			active_jobs[i] = _generate_job_instance(active_jobs[i])
+		elif active_jobs[i] is Dictionary:
+			active_jobs[i] = _normalize_job_instance(active_jobs[i])
+
+
+func _normalize_job_instance(job: Dictionary) -> Dictionary:
+	var template: String = job.get("template", "")
+	if template == "" and GameData.JOBS.has(job.get("uid", "")):
+		template = job.uid
+	if template == "" or not GameData.JOBS.has(template):
+		return job
+	var base: Dictionary = GameData.JOBS[template]
+	job.template = template
+	job.uid = str(job.get("uid", "gig_%s_%d" % [template, Time.get_ticks_msec()]))
+	job.name = str(job.get("name", base.name))
+	job.desc = str(job.get("desc", base.desc))
+	job.archetype = str(job.get("archetype", base.get("archetype", "drop")))
+	job.board = str(job.get("board", base.get("board", "plaza")))
+	job.energy = int(job.get("energy", base.energy))
+	job.cpu = int(job.get("cpu", 0))
+	job.cash = int(job.get("cash", base.cash))
+	job.heat = int(job.get("heat", base.get("heat", 0)))
+	job.step = int(job.get("step", 1))
+	job.steps_total = maxi(1, int(job.get("steps_total", 1)))
+	job.rep_chance = float(job.get("rep_chance", base.get("rep_chance", 0.0)))
+	job.risk = float(job.get("risk", base.get("risk", 0.0)))
+	if not JOB_DISTRICT_BOUNDS.has(job.get("district", "")):
+		_assign_job_stop(job)
+	elif not job.has("pos"):
+		_assign_job_stop(job)
+	else:
+		job.prompt = str(job.get("prompt", JOB_GOALS.get(job.archetype, JOB_GOALS["drop"])[0].prompt))
+		job.objective = str(job.get("objective", JOB_GOALS.get(job.archetype, JOB_GOALS["drop"])[0].objective))
+	return job
+
+
+func _generate_job_instance(id: String) -> Dictionary:
+	var base: Dictionary = GameData.JOBS[id]
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var cash_roll := int(round(base.cash * rng.randf_range(0.75, 1.45)))
+	var energy_roll := maxi(1, int(base.energy) + rng.randi_range(-1, 1))
+	var archetype: String = base.get("archetype", "drop")
+	var cpu_roll := 0
+	if archetype in ["wifi", "heist", "recon"] and base.get("req_computer", false):
+		cpu_roll = rng.randi_range(1, maxi(1, min(4, int(base.get("energy", 1)))))
+	if cash_roll == int(base.cash) and energy_roll == int(base.energy):
+		cash_roll += maxi(1, int(round(base.cash * 0.1)))
+	var inst := {
+		"uid": "gig_%s_%d_%d" % [id, Time.get_ticks_msec(), rng.randi()],
+		"template": id,
+		"name": base.name,
+		"desc": base.desc,
+		"archetype": archetype,
+		"board": base.get("board", "plaza"),
+		"energy": energy_roll,
+		"cpu": cpu_roll,
+		"cash": cash_roll,
+		"rep_chance": clampf(float(base.get("rep_chance", 0.0)) + rng.randf_range(-0.08, 0.12), 0.0, 0.95),
+		"heat": maxi(0, int(round(base.get("heat", 0) * rng.randf_range(0.6, 1.35)))),
+		"risk": clampf(float(base.get("risk", 0.0)) + rng.randf_range(-0.04, 0.08), 0.0, 0.8),
+		"step": 1,
+		"steps_total": rng.randi_range(2, 3),
+	}
+	_assign_job_stop(inst)
+	return inst
+
+
+func _assign_job_stop(job: Dictionary) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var districts := _job_district_candidates()
+	job.district = districts[rng.randi_range(0, districts.size() - 1)]
+	var bounds: Array = JOB_DISTRICT_BOUNDS.get(job.district, [2.0, 2.0, 10.0, 8.0])
+	job.pos = [
+		rng.randf_range(float(bounds[0]), float(bounds[2])),
+		rng.randf_range(float(bounds[1]), float(bounds[3])),
+	]
+	var goals: Array = JOB_GOALS.get(job.get("archetype", "drop"), JOB_GOALS["drop"])
+	var goal: Dictionary = goals[rng.randi_range(0, goals.size() - 1)]
+	job.prompt = goal.prompt
+	job.objective = goal.objective
+
+
+func _job_district_candidates() -> Array:
+	var out := []
+	for id in JOB_DISTRICT_BOUNDS:
+		if GameData.DISTRICTS.has(id) and district_unlocked(id):
+			out.append(id)
+	if out.is_empty():
+		out.append("plaza")
+	return out
 
 
 # One-time nudge when you first scrape together enough for the used laptop.
@@ -1084,12 +1383,21 @@ func daily_mult(kind: String, district: String = "") -> float:
 
 
 # Vex buys all your Stolen Data at a premium. Returns {count, total}.
-func fence_stolen_data() -> Dictionary:
+func fence_stolen_data_quote() -> Dictionary:
 	var n: int = inventory.get("stolen_data", 0)
 	if n <= 0:
 		return {"count": 0, "total": 0}
-	inventory.erase("stolen_data")
 	var total := int(round(n * FENCE_PRICE * daily_mult("fence") * mastery_mult("fence")))
+	return {"count": n, "total": total}
+
+
+func fence_stolen_data() -> Dictionary:
+	var quote := fence_stolen_data_quote()
+	var n: int = quote.count
+	if n <= 0:
+		return quote
+	inventory.erase("stolen_data")
+	var total: int = quote.total
 	cash += total
 	add_mastery("market")
 	stats_changed.emit()
@@ -1098,9 +1406,8 @@ func fence_stolen_data() -> Dictionary:
 
 # Marlowe scrubs Heat once per day for a fee that scales with how hot you are.
 # Returns {ok, reason, cost, before, after}.
-func bribe_fixer() -> Dictionary:
+func bribe_fixer_quote() -> Dictionary:
 	if trace_active:
-		notify("TRACE ACTIVE — leave the district before scrubbing Heat.", COL_BAD)
 		return {"ok": false, "reason": "trace"}
 	if fixer_used:
 		return {"ok": false, "reason": "used"}
@@ -1109,9 +1416,19 @@ func bribe_fixer() -> Dictionary:
 	var cost := maxi(25, heat * 4)
 	if cash < cost:
 		return {"ok": false, "reason": "cash", "cost": cost}
+	return {"ok": true, "cost": cost, "before": heat, "after": maxi(0, heat - 40)}
+
+
+func bribe_fixer() -> Dictionary:
+	var quote := bribe_fixer_quote()
+	if not quote.ok:
+		if quote.get("reason", "") == "trace":
+			notify("TRACE ACTIVE — leave the district before scrubbing Heat.", COL_BAD)
+		return quote
+	var cost: int = quote.cost
 	cash -= cost
-	var before := heat
-	heat = maxi(0, heat - 40)
+	var before: int = quote.before
+	heat = quote.after
 	fixer_used = true
 	stats_changed.emit()
 	return {"ok": true, "cost": cost, "before": before, "after": heat}
@@ -1327,7 +1644,10 @@ func unlocked_districts() -> Array:
 
 
 func district_unlocked(id: String) -> bool:
-	return status_index() >= GameData.DISTRICTS[id].get("status_req", 0)
+	# Interiors reached only from within another district (e.g. the corp
+	# datacenter) aren't in DISTRICTS — they inherit their parent's gating by
+	# virtue of the door living inside it, so treat the unlisted as open.
+	return status_index() >= GameData.DISTRICTS.get(id, {}).get("status_req", 0)
 
 
 # --- Consumables -------------------------------------------------------------
@@ -1493,6 +1813,54 @@ func _check_contract(target_id: String) -> void:
 	notify("CONTRACT COMPLETE: %s! +$%d, +%d REP" % [c.name, pay, c.rep], COL_GOOD)
 	active_contract = ""
 	stats_changed.emit()
+
+
+func final_contract_id() -> String:
+	var best_id := ""
+	var best_req := -1
+	for id in GameData.CONTRACTS:
+		var c: Dictionary = GameData.CONTRACTS[id]
+		var req: int = c.get("status_req", 0)
+		if req > best_req:
+			best_req = req
+			best_id = id
+	return best_id
+
+
+func final_contract_complete() -> bool:
+	var id := final_contract_id()
+	return id != "" and id in completed_contracts
+
+
+func has_trunk_key() -> bool:
+	return inventory.get(TRUNK_KEY_ITEM, 0) > 0
+
+
+func trunk_ready() -> bool:
+	return final_contract_complete() and has_trunk_key()
+
+
+func final_contract_hint() -> String:
+	var id := final_contract_id()
+	if id == "":
+		return "No final contract is listed."
+	var c: Dictionary = GameData.CONTRACTS[id]
+	if not final_contract_complete():
+		return "Complete the Darknet contract '%s' by pwning %s before jacking in." % [c.name, c.target]
+	if not has_trunk_key():
+		return "Beat Riot/R10T and take the R10T Root Key before jacking in."
+	return "The final contract is done and the R10T Root Key is in your bag."
+
+
+func trunk_prompt() -> String:
+	if trunk_ready():
+		return "Jack into the trunk"
+	var id := final_contract_id()
+	if id == "":
+		return "Jack into the trunk"
+	if final_contract_complete() and not has_trunk_key():
+		return "Jack in needs R10T Root Key"
+	return "Jack in needs %s" % GameData.CONTRACTS[id].name
 
 
 # --- Quest line ---------------------------------------------------------------

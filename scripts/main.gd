@@ -95,7 +95,11 @@ func talk_wanderer(npc_name: String) -> void:
 
 
 func talk_npc(id: String) -> void:
-	hud.show_dialog(NpcDialogs.lines_for(id))
+	if NpcDialogs.needs_confirmation(id):
+		hud.show_confirm_dialog(NpcDialogs.lines_for(id), "YES", "NO",
+				func() -> void: hud.show_dialog(NpcDialogs.confirm_lines_for(id)))
+	else:
+		hud.show_dialog(NpcDialogs.lines_for(id))
 
 
 func _on_busted() -> void:
