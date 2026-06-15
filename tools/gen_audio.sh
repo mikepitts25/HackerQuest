@@ -49,6 +49,7 @@ MUSIC=(
   "darknet|32000|dark glitchy underground darknet ambience, mysterious low pulse, looping"
   "drowned|40000|endgame submerged cyberpunk descent, deep ominous synth drone, distant detuned choir pads, slow climactic pulse beneath black water, glitchy data whispers, haunting and final, looping"
   "riot_boss|40000|intense endgame cyberpunk boss battle theme, aggressive distorted synth bass, glitchy breakbeat drums, menacing rival hacker showdown, dark driving arpeggios, high stakes, looping"
+  "battle|32000|fast driving cyberpunk combat music, tense electronic battle, pulsing synth bassline, urgent arpeggios, neon hacker duel, adrenaline, looping"
 )
 
 json_escape() { python3 -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$1"; }

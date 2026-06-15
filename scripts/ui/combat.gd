@@ -34,9 +34,9 @@ var _boss_burst: Control
 var _boss_title: Label
 var _boss_subtitle: Label
 var _boss_flash: ColorRect
-# District track stashed while a boss theme plays, restored when the fight ends.
+# District track stashed while combat music plays, restored when the fight ends.
 var _prev_music := ""
-var _boss_audio := false
+var _combat_audio := false
 
 
 func _ready() -> void:
@@ -55,7 +55,7 @@ func start(enemy_id: String) -> void:
 	visible = true
 	_play_open_animation()
 	GameState.lock_ui()
-	_start_boss_audio()
+	_start_combat_audio()
 	_render()
 	_render_actions("choose")
 
@@ -74,22 +74,21 @@ func _play_open_animation() -> void:
 			set_meta("animating_in", false))
 
 
-# R10T and his crew get a signature arrival sting and swap the district track
-# for the rival boss theme; the previous track is restored when the fight ends.
-# Ordinary ambushes keep the district music playing under the panel.
-func _start_boss_audio() -> void:
-	_boss_audio = false
-	var sting := ""
+# Every fight swaps the district ambience for combat music, restored when the
+# fight ends. R10T and his crew get the rival boss theme plus a signature
+# arrival sting; ordinary ambushes and trace units get the general battle theme.
+func _start_combat_audio() -> void:
+	_combat_audio = false
+	var track := "battle"
 	if _session.enemy_id == "r10t":
-		sting = "riot_sting"
+		track = "riot_boss"
+		Audio.sfx("riot_sting")
 	elif _session.enemy.get("crew", "") == "r10t":
-		sting = "crew_sting"
-	if sting == "":
-		return
+		track = "riot_boss"
+		Audio.sfx("crew_sting")
 	_prev_music = Audio.current_track()
-	_boss_audio = true
-	Audio.sfx(sting)
-	Audio.music("riot_boss")
+	_combat_audio = true
+	Audio.music(track)
 
 
 func _input(event: InputEvent) -> void:
@@ -430,11 +429,10 @@ func _on_continue() -> void:
 	var won: bool = _session.outcome == _session.WIN
 	var closed_enemy_id: String = _session.enemy_id
 	var closed_outcome: String = _session.outcome
-	# Drop the boss theme and bring the district track back (only boss fights
-	# swapped it; ordinary ambushes left the district music playing).
-	if _boss_audio:
+	# Drop the combat track and bring the district ambience back.
+	if _combat_audio:
 		Audio.music(_prev_music)
-		_boss_audio = false
+		_combat_audio = false
 		_prev_music = ""
 	set_meta("animating_out", true)
 	var tw := create_tween().set_parallel(true)
