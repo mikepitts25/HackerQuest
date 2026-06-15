@@ -38,7 +38,7 @@ const PERSISTED := [
 	"botnet_size", "day", "has_computer", "upgrades", "xp", "level",
 	"skill_points", "status_seen", "skills", "inventory", "quest_index", "total_hacks",
 	"hacked_ever", "exploited", "botted", "trash_searched", "wired_cpu",
-	"fixer_used", "apartment", "ambient", "known_networks",
+	"fixer_used", "apartment", "ambient", "known_networks", "wifi_backdoors",
 	"active_contract", "completed_contracts", "owned_cosmetics", "equipped", "active_jobs",
 	"mastery", "favors_done", "goods", "handle", "skin_tone", "background",
 	"scrap_bounty_done", "owned_gear", "gear", "r10t_beaten", "owned_furniture",
@@ -112,6 +112,7 @@ var wifi_current := {}
 
 # Networks you've discovered, so you can revisit them. [{ssid, enc}], capped.
 var known_networks: Array = []
+var wifi_backdoors := {}     # district_id -> day-long cracked-network leverage
 
 # Darknet contracts: one active bounty at a time, plus a record of finished ones.
 var active_contract := ""
@@ -251,6 +252,7 @@ func new_game() -> void:
 	_seed_ambient()
 	wifi_current = {}
 	known_networks = []
+	wifi_backdoors = {}
 	active_contract = ""
 	completed_contracts = []
 	active_jobs = []
@@ -296,6 +298,11 @@ func _coerce_loaded(field: String, value: Variant) -> Variant:
 			for k in value:
 				inv[k] = int(value[k])
 			return inv
+		"wifi_backdoors":
+			var backs := {}
+			for k in value:
+				backs[str(k)] = int(value[k])
+			return backs
 		"cash", "energy", "max_energy", "cpu", "max_cpu", "heat", "reputation", \
 		"botnet_size", "day", "xp", "level", "skill_points", "status_seen", \
 		"quest_index", "total_hacks":
@@ -1543,13 +1550,14 @@ func has_wifi_adapter() -> bool:
 
 # Generate a nearby network. Stronger gear/skill/status surface tougher (richer)
 # encryption tiers. Stores and returns it.
-func sniff_wifi() -> Dictionary:
+func sniff_wifi(district := "") -> Dictionary:
 	var top := mini(GameData.WIFI_ENCRYPTION.size() - 1, 1 + skill("wardriving") + status_index() / 2)
 	var tier: int = randi_range(0, top)
 	wifi_current = {
 		"ssid": GameData.WIFI_SSIDS.pick_random(),
 		"enc": tier,
 		"bars": randi_range(1, 4),
+		"district": district,
 	}
 	_remember_network(wifi_current)
 	return wifi_current
@@ -1561,7 +1569,7 @@ func _remember_network(net: Dictionary) -> void:
 	for k in known_networks:
 		if k.ssid == net.ssid and k.enc == net.enc:
 			return
-	known_networks.push_front({"ssid": net.ssid, "enc": net.enc})
+	known_networks.push_front({"ssid": net.ssid, "enc": net.enc, "district": net.get("district", "")})
 	if known_networks.size() > 10:
 		known_networks.resize(10)
 
@@ -1571,7 +1579,7 @@ func load_known(index: int) -> void:
 	if index < 0 or index >= known_networks.size():
 		return
 	var k: Dictionary = known_networks[index]
-	wifi_current = {"ssid": k.ssid, "enc": k.enc, "bars": randi_range(1, 4)}
+	wifi_current = {"ssid": k.ssid, "enc": k.enc, "bars": randi_range(1, 4), "district": k.get("district", "")}
 
 
 func wifi_chance(net: Dictionary) -> float:
@@ -1605,11 +1613,66 @@ func crack_wifi() -> Dictionary:
 	add_cash(payout)
 	add_xp(6 + enc.diff * 4)
 	add_heat(enc.heat)
+	var seeded_bots := _seed_wifi_botnet(net)
+	var backdoor_power := _add_wifi_backdoor(net)
 	var got_data: bool = randf() < enc.data
 	if got_data:
 		add_item("stolen_data")
 	stats_changed.emit()
-	return {"ok": true, "ssid": net.ssid, "enc": net.enc, "payout": payout, "heat": enc.heat, "data": got_data}
+	return {"ok": true, "ssid": net.ssid, "enc": net.enc, "payout": payout, "heat": enc.heat,
+		"data": got_data, "bots": seeded_bots, "backdoor": backdoor_power,
+		"district": net.get("district", "")}
+
+
+func _seed_wifi_botnet(net: Dictionary) -> int:
+	var enc: Dictionary = GameData.WIFI_ENCRYPTION[net.enc]
+	var bots: int = maxi(1, int(enc.diff) + int(net.get("bars", 1)) / 2)
+	botnet_size += bots
+	return bots
+
+
+func _add_wifi_backdoor(net: Dictionary) -> int:
+	var district := str(net.get("district", ""))
+	if district == "" or not GameData.DISTRICTS.has(district):
+		return 0
+	var enc: Dictionary = GameData.WIFI_ENCRYPTION[net.enc]
+	var power: int = maxi(1, int(enc.diff) + 1)
+	wifi_backdoors[district] = int(wifi_backdoors.get(district, 0)) + power
+	return power
+
+
+func wifi_backdoor_bonus(district: String) -> float:
+	return minf(0.18, int(wifi_backdoors.get(district, 0)) * 0.06)
+
+
+func target_wifi_backdoor_modifier(t: Dictionary) -> float:
+	return wifi_backdoor_bonus(str(t.get("district", "")))
+
+
+const BOTNET_FLOOD_MIN := 10
+
+
+func botnet_flood_available() -> bool:
+	return botnet_size >= BOTNET_FLOOD_MIN
+
+
+func botnet_flood_damage() -> int:
+	if not botnet_flood_available():
+		return 0
+	return clampi(18 + botnet_size, 35, 70)
+
+
+func consume_botnet_flood() -> Dictionary:
+	if not botnet_flood_available():
+		return {"ok": false, "reason": "botnet", "need": BOTNET_FLOOD_MIN}
+	var before := botnet_size
+	var burn := ceili(before * 0.5)
+	var damage := botnet_flood_damage()
+	botnet_size = maxi(0, botnet_size - burn)
+	add_heat(8 + burn / 2)
+	stats_changed.emit()
+	return {"ok": true, "name": "Botnet Flood", "burn": burn, "before": before,
+		"combat": {"damage": damage}}
 
 
 # --- Ambient wanderers -------------------------------------------------------
@@ -1982,6 +2045,7 @@ func sleep() -> void:
 	heat = maxi(0, heat - cooled)
 	exploited.clear()
 	trash_searched.clear()
+	wifi_backdoors.clear()
 	favors_done.clear()
 	scrap_bounty_done = false
 	add_mastery("home")  # routine is its own mastery

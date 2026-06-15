@@ -276,6 +276,9 @@ func _cmd_inspect(arg: String) -> void:
 	_say("  district   : %s" % GameData.district_tier_name(str(t.get("district", ""))))
 	_say("  difficulty : %d/10" % t.difficulty)
 	_say("  success    : ~%d%%" % int(_chance(t) * 100))
+	var backdoor_bonus := GameState.target_wifi_backdoor_modifier(t)
+	if backdoor_bonus > 0.0:
+		_say("  wifi backdoor : active (+%d%%)" % int(backdoor_bonus * 100), C_CYAN)
 	var req_gear := GameState.target_required_gear(t)
 	if req_gear != "":
 		var gear_name: String = GameData.GEAR[req_gear].name
@@ -302,7 +305,8 @@ const EXPLOIT_ENERGY := 1  # soft energy cost per exploit attempt
 
 func _chance(t: Dictionary) -> float:
 	var base: float = 0.95 - t.difficulty * 0.12 + GameState.reputation * 0.015 \
-		+ GameState.gear_hack_bonus() + GameState.target_tier_gear_modifier(t)
+		+ GameState.gear_hack_bonus() + GameState.target_tier_gear_modifier(t) \
+		+ GameState.target_wifi_backdoor_modifier(t)
 	return clampf(base - GameState.fatigue_penalty() - GameState.heat_penalty(), 0.05, 0.95)
 
 

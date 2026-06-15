@@ -142,7 +142,7 @@ func player_jack_out() -> void:
 
 # Items the player can run as a PROGRAM this fight: owned consumables that carry
 # a combat block. Returns [{id, name, combat}], for the UI to render.
-static func available_programs(inventory: Dictionary) -> Array:
+static func available_programs(inventory: Dictionary, botnet_size := 0) -> Array:
 	var out: Array = []
 	for id in inventory:
 		if inventory[id] <= 0:
@@ -150,6 +150,10 @@ static func available_programs(inventory: Dictionary) -> Array:
 		var c: Dictionary = GameData.CONSUMABLES.get(id, {})
 		if c.has("combat"):
 			out.append({"id": id, "name": c.name, "combat": c.combat})
+	if botnet_size >= GameState.BOTNET_FLOOD_MIN:
+		out.append({"id": "botnet_flood", "name": "Botnet Flood",
+			"combat": {"damage": GameState.botnet_flood_damage()},
+			"desc": "Burn half your botnet for a heavy distributed strike."})
 	return out
 
 

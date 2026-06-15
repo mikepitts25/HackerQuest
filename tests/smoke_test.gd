@@ -634,6 +634,32 @@ func _ready() -> void:
 	_check(wres.get("ok", false), "open network cracked")
 	_check(GameState.cash > wcash, "wifi crack paid out")
 	_check(GameState.wifi_current.is_empty(), "network consumed after crack")
+	GameState.wifi_backdoors = {}
+	GameState.botnet_size = 0
+	GameState.cpu = GameState.max_cpu
+	GameState.energy = 5
+	var seeded := false
+	for i in 8:
+		GameState.wifi_current = {"ssid": "CorpGuest_%d" % i, "enc": 0, "bars": 4, "district": "corp_row"}
+		var seeded_res := GameState.crack_wifi()
+		if seeded_res.get("ok", false):
+			seeded = true
+			break
+		GameState.cpu = GameState.max_cpu
+		GameState.energy = 5
+	_check(seeded, "wifi crack can seed a district backdoor")
+	_check(GameState.botnet_size >= 1, "wifi crack seeds botnet nodes")
+	_check(GameState.wifi_backdoor_bonus("corp_row") > 0.0, "district backdoor grants a hack odds bonus")
+	var backdoor_target: Dictionary = GameData.TARGETS["corp_mail_relay"]
+	_check(GameState.target_wifi_backdoor_modifier(backdoor_target) > 0.0,
+			"target reads matching district wifi backdoor bonus")
+	var rep_before_backdoor_odds := GameState.reputation
+	GameState.reputation = 0
+	var odds_with_backdoor: float = terminal.call("_chance", backdoor_target)
+	GameState.wifi_backdoors = {}
+	var odds_without_backdoor: float = terminal.call("_chance", backdoor_target)
+	GameState.reputation = rep_before_backdoor_odds
+	_check(odds_with_backdoor > odds_without_backdoor, "wifi backdoor improves terminal hack chance")
 
 	# --- apartments / vacancies ---
 	_check(GameState.apartment == "apt_4b", "start in apt 4b")
@@ -913,6 +939,27 @@ func _ready() -> void:
 	var bomb_count: int = GameState.inventory.get("logic_bomb", 0)
 	_check(not GameState.use_consumable("logic_bomb"), "combat item can't be used outside a fight")
 	_check(GameState.inventory.get("logic_bomb", 0) == bomb_count, "refused combat item is not consumed")
+	GameState.botnet_size = 20
+	var has_flood := false
+	var flood_entry := {}
+	for p in CombatSession.available_programs(GameState.inventory, GameState.botnet_size):
+		if p.id == "botnet_flood":
+			has_flood = true
+			flood_entry = p
+	_check(has_flood, "combat: botnet flood appears as a PROGRAM when botnet is large enough")
+	var bots_before_flood := GameState.botnet_size
+	var heat_before_flood := GameState.heat
+	var flood_payload: Dictionary = GameState.consume_botnet_flood()
+	_check(flood_payload.get("ok", false), "combat: botnet flood payload can be consumed")
+	_check(GameState.botnet_size == bots_before_flood - ceili(bots_before_flood * 0.5),
+			"combat: botnet flood burns half the botnet")
+	_check(GameState.heat > heat_before_flood, "combat: botnet flood adds heat")
+	_check(flood_payload.get("combat", {}).get("damage", 0) >= 35, "combat: botnet flood hits hard")
+	var flood_session = CombatSession.new()
+	flood_session.init({"attack": 1, "defense": 1, "integrity": 80, "crit": 0.0, "stealth": 0}, "street_hacker", 2)
+	var flood_enemy_before: int = flood_session.enemy_hp
+	flood_session.player_program(flood_payload.combat, flood_payload.name)
+	_check(flood_session.enemy_hp < flood_enemy_before, "combat: botnet flood damages the enemy")
 
 	# --- encounter gating (G6 phase 3) ---
 	var Main3D := load("res://scripts/iso/main_3d.gd")

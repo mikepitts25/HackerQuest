@@ -367,7 +367,7 @@ func _render_actions(state: String) -> void:
 			_actions.add_child(_make_button("PROGRAM", C_YEL, _on_program))
 			_actions.add_child(_make_button("JACK OUT", C_RED, _on_jack_out))
 		"program":
-			var progs: Array = CombatSessionScript.available_programs(GameState.inventory)
+			var progs: Array = CombatSessionScript.available_programs(GameState.inventory, GameState.botnet_size)
 			for p in progs:
 				var entry: Dictionary = p
 				_actions.add_child(_make_button(
@@ -392,7 +392,7 @@ func _on_firewall() -> void:
 
 
 func _on_program() -> void:
-	if CombatSessionScript.available_programs(GameState.inventory).is_empty():
+	if CombatSessionScript.available_programs(GameState.inventory, GameState.botnet_size).is_empty():
 		_session._log("> no combat programs loaded.")
 		_render()
 		return
@@ -400,8 +400,18 @@ func _on_program() -> void:
 
 
 func _on_run_program(entry: Dictionary) -> void:
-	GameState.consume_item(entry.id)
-	_session.player_program(entry.combat, entry.name)
+	if entry.id == "botnet_flood":
+		var payload := GameState.consume_botnet_flood()
+		if not payload.get("ok", false):
+			_session._log("> botnet flood unavailable.")
+			_render()
+			_render_actions("choose")
+			return
+		_session._log("> you burn %d bots into a synchronized flood." % int(payload.burn))
+		_session.player_program(payload.combat, payload.name)
+	else:
+		GameState.consume_item(entry.id)
+		_session.player_program(entry.combat, entry.name)
 	_post_move()
 
 

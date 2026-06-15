@@ -1217,9 +1217,14 @@ func _use_consumable(id: String) -> void:
 # --- WiFi sniffer (wild encounters) ------------------------------------------
 
 func _open_wifi() -> void:
-	GameState.sniff_wifi()
+	GameState.sniff_wifi(_current_district_id())
 	_refresh_wifi()
 	_open_modal(_wifi_modal)
+
+
+func _current_district_id() -> String:
+	var cur: Variant = get_tree().current_scene.get("current_district_id")
+	return cur if cur is String else ""
 
 
 func _refresh_wifi() -> void:
@@ -1235,10 +1240,13 @@ func _refresh_wifi() -> void:
 		_modal_label(_wifi_modal, enc.name, Color(enc.color), 18)
 		_modal_label(_wifi_modal, "~%d%% crack chance   ·   $%d–$%d" % [pct, enc.min, enc.max], Color(1, 1, 1, 0.7), 15)
 		_modal_label(_wifi_modal, "cost: %d CPU, 1 Energy   ·   +%d Heat" % [enc.diff, enc.heat], Color(1, 1, 1, 0.5), 14)
+		if str(net.get("district", "")) != "":
+			var dname: String = GameData.DISTRICTS[net.district].name
+			_modal_label(_wifi_modal, "local leverage: %s backdoor + bot seed" % dname, Color("7adfff"), 14)
 		var no_cpu: bool = GameState.cpu < enc.diff
 		_add_row(_wifi_modal, "Crack it", "", "NEED CPU" if no_cpu else "CRACK", no_cpu, _do_crack)
 	_add_row(_wifi_modal, "Keep driving", "", "SNIFF AGAIN", false, func() -> void:
-		GameState.sniff_wifi()
+		GameState.sniff_wifi(_current_district_id())
 		_refresh_wifi())
 
 	# Saved networks you've found — revisit any to re-target it.
@@ -1259,12 +1267,16 @@ func _do_crack() -> void:
 		GameState.notify("Can't crack that right now.", GameState.COL_WARN)
 	elif r.ok:
 		var msg := "Cracked %s! +$%d, +%d Heat" % [r.ssid, r.payout, r.heat]
+		if int(r.get("bots", 0)) > 0:
+			msg += ", +%d BOT" % int(r.bots)
+		if int(r.get("backdoor", 0)) > 0:
+			msg += " (%s backdoor)" % GameData.DISTRICTS[str(r.district)].name
 		if r.data:
 			msg += " (+Stolen Data)"
 		GameState.notify(msg, GameState.COL_GOOD)
 	else:
 		GameState.notify("%s shrugged you off. +%d Heat." % [r.ssid, r.heat], GameState.COL_BAD)
-	GameState.sniff_wifi()  # next network rolls in
+	GameState.sniff_wifi(_current_district_id())  # next network rolls in
 	_refresh_wifi()
 
 
