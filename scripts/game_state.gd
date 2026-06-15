@@ -42,7 +42,8 @@ const PERSISTED := [
 	"active_contract", "completed_contracts", "owned_cosmetics", "equipped", "active_jobs",
 	"mastery", "favors_done", "goods", "handle", "skin_tone", "background",
 	"scrap_bounty_done", "owned_gear", "gear", "r10t_beaten", "owned_furniture",
-	"defeated_crew_bosses", "music_vol", "sfx_vol",
+	"defeated_crew_bosses", "owned_pets", "active_pet", "solved_cryptograms",
+	"music_vol", "sfx_vol",
 ]
 
 # True until a save is loaded; lets the main scene pick intro vs "welcome back".
@@ -56,6 +57,9 @@ var defeated_crew_bosses: Array[String] = []
 # Furniture you've bought for your apartment (Apartments v2). Drives perks +
 # Style score; rendered in home_3d.
 var owned_furniture: Array[String] = []
+var owned_pets: Array[String] = []
+var active_pet := ""
+var solved_cryptograms: Array[String] = []
 var gear := {}   # slot -> gear id (G4)
 
 var trace_active := false
@@ -207,6 +211,7 @@ func load_game() -> bool:
 	for field in PERSISTED:
 		if parsed.has(field):
 			set(field, _coerce_loaded(field, parsed[field]))
+	_migrate_legacy_pet_upgrade()
 	_reset_trace()
 	if heat >= 100:
 		heat = trace_escape_heat()
@@ -268,6 +273,9 @@ func new_game() -> void:
 	r10t_beaten = false
 	defeated_crew_bosses = [] as Array[String]
 	owned_furniture = [] as Array[String]
+	owned_pets = [] as Array[String]
+	active_pet = ""
+	solved_cryptograms = [] as Array[String]
 	_reset_trace()
 	owned_cosmetics = ["hoodie_gray", "hat_none"] as Array[String]
 	equipped = {"outfit": "hoodie_gray", "hat": "hat_none"}
@@ -283,7 +291,7 @@ func new_game() -> void:
 # untyped. Re-cast the fields where that matters.
 func _coerce_loaded(field: String, value: Variant) -> Variant:
 	match field:
-		"upgrades", "owned_cosmetics", "owned_gear", "owned_furniture", "defeated_crew_bosses":
+		"upgrades", "owned_cosmetics", "owned_gear", "owned_furniture", "defeated_crew_bosses", "owned_pets", "solved_cryptograms":
 			var typed: Array[String] = []
 			for v in value:
 				typed.append(str(v))
@@ -329,6 +337,16 @@ func is_ui_locked() -> bool:
 
 func owned(id: String) -> bool:
 	return id in upgrades
+
+
+func _migrate_legacy_pet_upgrade() -> void:
+	if not ("robo_pet" in upgrades):
+		return
+	upgrades.erase("robo_pet")
+	if not ("dog" in owned_pets):
+		owned_pets.append("dog")
+	if active_pet == "":
+		active_pet = "dog"
 
 
 func add_cash(amount: int) -> void:
@@ -641,9 +659,10 @@ func heat_penalty() -> float:
 func heat_cooldown_per_day() -> int:
 	var cool := 20
 	cool -= 2 * status_index()        # notoriety = more eyes
-	cool += 4 * skill("stealth")      # tradecraft helps you lie low
+	cool += 4 * total_stealth()       # tradecraft helps you lie low
 	cool += apartment_perk("cool")    # a safer place cools you off
 	cool += furniture_perk("cool")    # ...and a VPN rack in the corner
+	cool += int(pet_stat("cool"))
 	if owned("vpn"):
 		cool += 8
 	return maxi(5, cool)
@@ -689,7 +708,81 @@ func buy_skill(id: String) -> bool:
 
 
 func hustle_mult() -> float:
-	return 1.0 + 0.15 * skill("hustle")
+	return 1.0 + 0.15 * skill("hustle") + pet_stat("cash_mult")
+
+
+# --- Pets --------------------------------------------------------------------
+
+func owns_pet(id: String) -> bool:
+	return id in owned_pets
+
+
+func has_pet() -> bool:
+	return active_pet != "" and owns_pet(active_pet) and GameData.PETS.has(active_pet)
+
+
+func pet_stat(key: String) -> float:
+	if not has_pet():
+		return 0.0
+	return float(GameData.PETS[active_pet].get(key, 0.0))
+
+
+func buy_pet(id: String) -> bool:
+	if not GameData.PETS.has(id):
+		return false
+	if owns_pet(id):
+		notify("You already adopted that companion.", COL_WARN)
+		return false
+	var p: Dictionary = GameData.PETS[id]
+	if cash < int(p.price):
+		notify("Not enough cash.", COL_WARN)
+		return false
+	cash -= int(p.price)
+	owned_pets.append(id)
+	active_pet = id
+	notify("%s is traveling with you." % p.name, COL_GOOD)
+	stats_changed.emit()
+	save_game()
+	return true
+
+
+func equip_pet(id: String) -> bool:
+	if not owns_pet(id) or not GameData.PETS.has(id):
+		return false
+	active_pet = id
+	notify("%s is traveling with you." % GameData.PETS[id].name, COL_GOOD)
+	stats_changed.emit()
+	save_game()
+	return true
+
+
+func solve_cryptogram(id: String) -> bool:
+	if GameData.cryptogram_clue(id).is_empty():
+		return false
+	if id in solved_cryptograms:
+		return false
+	solved_cryptograms.append(id)
+	notify("Cryptogram fragment decoded (%d/%d)." % [
+		solved_cryptograms.size(), GameData.CRYPTOGRAM_CLUES.size()], COL_INFO)
+	stats_changed.emit()
+	save_game()
+	return true
+
+
+func cryptogram_complete() -> bool:
+	for clue in GameData.CRYPTOGRAM_CLUES:
+		if not (str(clue.id) in solved_cryptograms):
+			return false
+	return GameData.CRYPTOGRAM_CLUES.size() > 0
+
+
+func target_unlocked(id: String) -> bool:
+	if not GameData.TARGETS.has(id):
+		return false
+	var t: Dictionary = GameData.TARGETS[id]
+	if bool(t.get("cryptogram_req", false)) and not cryptogram_complete():
+		return false
+	return true
 
 
 # --- Inventory ---------------------------------------------------------------
@@ -834,11 +927,15 @@ func base_integrity() -> int:
 
 
 func total_cyber_attack() -> int:
-	return int(gear_stat("rig", "cyber")) + skill("hardware")
+	return int(gear_stat("rig", "cyber")) + skill("hardware") + int(pet_stat("attack"))
 
 
 func total_defense() -> int:
-	return int(gear_stat("firewall", "defense")) + skill("stealth")
+	return int(gear_stat("firewall", "defense")) + total_stealth()
+
+
+func total_stealth() -> int:
+	return skill("stealth") + int(pet_stat("stealth"))
 
 
 func total_integrity() -> int:
@@ -857,7 +954,7 @@ func combat_stats() -> Dictionary:
 		"defense": total_defense(),
 		"integrity": total_integrity(),
 		"crit": total_crit(),
-		"stealth": skill("stealth"),
+		"stealth": total_stealth(),
 		"endgame_loadout": has_endgame_loadout(),
 	}
 

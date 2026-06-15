@@ -44,6 +44,7 @@ var _favors_modal := {}
 var _goods_modal := {}
 var _quests_modal := {}
 var _loadout_modal := {}
+var _pets_modal := {}
 var _city_map: Control
 var _modals: Array = []  # every modal, for one-at-a-time enforcement
 
@@ -68,13 +69,14 @@ func _ready() -> void:
 	_goods_modal = _make_modal("GOODS EXCHANGE")
 	_quests_modal = _make_modal("QUEST LOG")
 	_loadout_modal = _make_modal("LOADOUT")
+	_pets_modal = _make_modal("PET SHOP")
 	_phone_modal = _make_modal("BURNER PHONE")
 	_map_modal = _make_modal("CITY GRID")
 	_city_map = preload("res://scripts/ui/city_map.gd").new()
 	_city_map.custom_minimum_size = Vector2(560, 540)
 	_city_map.travel_requested.connect(_on_map_travel)
 	_map_modal.rows.add_child(_city_map)
-	_modals = [_jobs_modal, _skills_modal, _bag_modal, _wifi_modal, _apt_modal, _furnish_modal, _settings_modal, _contracts_modal, _favors_modal, _goods_modal, _quests_modal, _loadout_modal, _phone_modal, _map_modal]
+	_modals = [_jobs_modal, _skills_modal, _bag_modal, _wifi_modal, _apt_modal, _furnish_modal, _settings_modal, _contracts_modal, _favors_modal, _goods_modal, _quests_modal, _loadout_modal, _pets_modal, _phone_modal, _map_modal]
 	GameState.stats_changed.connect(_refresh_stats)
 	GameState.stats_changed.connect(_refresh_quest)  # active gigs surface here too
 	GameState.toast.connect(add_feed_message)
@@ -941,6 +943,35 @@ func show_loadout() -> void:
 	tip.add_theme_color_override("font_color", Color("7adfff"))
 	rows.add_child(tip)
 	_open_modal(_loadout_modal)
+
+
+func show_pet_shop() -> void:
+	_refresh_pet_shop()
+	_open_modal(_pets_modal)
+
+
+func _refresh_pet_shop() -> void:
+	_pets_modal.title.text = "PET SHOP   ($%d)" % GameState.cash
+	_clear_rows(_pets_modal)
+	var active_name := "none"
+	if GameState.has_pet():
+		active_name = GameData.PETS[GameState.active_pet].name
+	_modal_label(_pets_modal, "traveling companion: %s" % active_name, Color("7adfff"), 14)
+	for id in GameData.PETS:
+		var p: Dictionary = GameData.PETS[id]
+		var owned: bool = GameState.owns_pet(id)
+		var active: bool = owned and GameState.active_pet == id
+		var btn_text: String = "ACTIVE" if active else ("TRAVEL WITH" if owned else "$%d" % int(p.price))
+		var disabled: bool = active or (not owned and GameState.cash < int(p.price))
+		var desc: String = "%s  (%s)" % [p.desc, p.ability]
+		var pet_id := str(id)
+		_add_row(_pets_modal, p.name, desc, btn_text, disabled,
+				func() -> void:
+					if GameState.owns_pet(pet_id):
+						GameState.equip_pet(pet_id)
+					else:
+						GameState.buy_pet(pet_id)
+					_refresh_pet_shop())
 
 
 # Quest log — the main story chain + repeatable district bounties.

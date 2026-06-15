@@ -141,6 +141,10 @@ func open_shop() -> void:
 	shop.open()
 
 
+func open_pet_shop() -> void:
+	hud.show_pet_shop()
+
+
 # Drop into a turn-based fight against a GameData.ENEMIES id (G6).
 func start_combat(enemy_id: String) -> void:
 	combat.start(enemy_id)
@@ -232,6 +236,20 @@ func open_furnish() -> void:
 
 func open_contracts() -> void:
 	hud.show_contracts()
+
+
+func show_cryptogram_clue(id: String) -> void:
+	var clue := GameData.cryptogram_clue(id)
+	if clue.is_empty():
+		return
+	GameState.solve_cryptogram(id)
+	hud.show_dialog([
+		str(clue.title),
+		"CIPHER: %s" % str(clue.encoded),
+		"HINT: %s" % str(clue.hint),
+		"DECODED: %s" % str(clue.plain),
+		"Fragments decoded: %d/%d" % [GameState.solved_cryptograms.size(), GameData.CRYPTOGRAM_CLUES.size()],
+	])
 
 
 func open_quests() -> void:

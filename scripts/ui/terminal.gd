@@ -249,6 +249,9 @@ func _cmd_scan() -> void:
 		if GameState.reputation < t.rep_req:
 			_say("  ░░░ encrypted node — REP %d required" % t.rep_req, C_DIM)
 			continue
+		if not GameState.target_unlocked(id):
+			_say("  ░░░ hidden cache — cryptogram trail incomplete", C_DIM)
+			continue
 		var status := ""
 		if GameState.botted.has(id):
 			status = "  [BOTTED]"
@@ -270,6 +273,10 @@ func _cmd_inspect(arg: String) -> void:
 	var t: Dictionary = GameData.TARGETS[arg]
 	if GameState.reputation < t.rep_req:
 		_say("this node is beyond you. REP %d required." % t.rep_req, C_YEL)
+		return
+	if not GameState.target_unlocked(arg):
+		_say("cryptogram trail incomplete: %d/%d fragments decoded." % [
+			GameState.solved_cryptograms.size(), GameData.CRYPTOGRAM_CLUES.size()], C_YEL)
 		return
 	_say("── %s ──" % arg, C_CYAN)
 	_say(t.desc, C_DIM)
@@ -318,6 +325,9 @@ func _cmd_exploit(arg: String) -> void:
 	if GameState.reputation < t.rep_req:
 		_say("access vector unknown. REP %d required." % t.rep_req, C_YEL)
 		return
+	if not GameState.target_unlocked(arg):
+		_say("access vector scrambled. Decode every cryptogram fragment first.", C_YEL)
+		return
 	if GameState.exploited.has(arg):
 		_say("already pwned today. install_bot or come back tomorrow.", C_YEL)
 		return
@@ -346,6 +356,10 @@ func _cmd_exploit(arg: String) -> void:
 		_say("ACCESS GRANTED — siphoned $%d  (+1 REP, +%d XP, +%d HEAT, -%d CPU, -%d Energy)" % [payout, 10 * t.difficulty, t.heat, t.cpu_cost, EXPLOIT_ENERGY], C_CYAN)
 		if dropped:
 			_say("exfiltrated 1x Stolen Data — sell it at the pawn shop", C_YEL)
+		var loot_item := str(t.get("loot_item", ""))
+		if loot_item != "":
+			GameState.add_item(loot_item)
+			_say("recovered 1x %s from the motherlode" % GameData.ITEMS[loot_item].name, C_YEL)
 		if not GameState.botted.has(arg):
 			_say(_link("bot", arg, "▶ tap to INSTALL_BOT", C_YEL))
 	else:

@@ -78,6 +78,10 @@ func open_shop() -> void:
 	shop.open()
 
 
+func open_pet_shop() -> void:
+	hud.show_pet_shop()
+
+
 func show_jobs(board: String = "plaza") -> void:
 	hud.show_jobs(board)
 
@@ -88,6 +92,20 @@ func open_apartments() -> void:
 
 func open_contracts() -> void:
 	hud.show_contracts()
+
+
+func show_cryptogram_clue(id: String) -> void:
+	var clue := GameData.cryptogram_clue(id)
+	if clue.is_empty():
+		return
+	GameState.solve_cryptogram(id)
+	hud.show_dialog([
+		str(clue.title),
+		"CIPHER: %s" % str(clue.encoded),
+		"HINT: %s" % str(clue.hint),
+		"DECODED: %s" % str(clue.plain),
+		"Fragments decoded: %d/%d" % [GameState.solved_cryptograms.size(), GameData.CRYPTOGRAM_CLUES.size()],
+	])
 
 
 func talk_wanderer(npc_name: String) -> void:

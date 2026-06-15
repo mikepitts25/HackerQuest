@@ -68,15 +68,22 @@ func _physics_process(_delta: float) -> void:
 	_update_nearest()
 
 
-# Byte trails the player; lives as a sibling under the player's parent so it
-# isn't yanked around by the player's own facing rotation.
+# The active companion trails the player; it stays top-level so it is not yanked
+# around by the player's own facing rotation.
 func _update_pet() -> void:
-	if not GameState.owned("robo_pet"):
+	if not GameState.has_pet():
+		if _pet != null:
+			_pet.queue_free()
+			_pet = null
 		return
+	if _pet != null and str(_pet.get_meta("pet_id", "")) != GameState.active_pet:
+		_pet.queue_free()
+		_pet = null
 	if _pet == null and is_inside_tree():
 		_pet = Node3D.new()
 		_pet.set_script(preload("res://scripts/iso/pet_3d.gd"))
 		add_child(_pet)
+		_pet.set_meta("pet_id", GameState.active_pet)
 		_pet.top_level = true  # ignore the player's transform; follow in world space
 		_pet.global_position = global_position - Vector3(0.9, 0, 0.9)
 

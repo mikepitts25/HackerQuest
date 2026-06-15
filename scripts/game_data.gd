@@ -80,6 +80,14 @@ const TARGETS := {
 		"heat": 50, "botnet_value": 28, "rep_req": 80,
 		"district": "drowned_quarter", "district_tier": 6, "required_gear": "rig_ghostroot",
 	},
+	"motherlode_vault": {
+		"name": "motherlode_vault",
+		"desc": "The cache named by the citywide cryptogram trail. It only answers once the whole phrase is assembled.",
+		"difficulty": 11, "cpu_cost": 18, "payout_min": 9000, "payout_max": 13000,
+		"heat": 55, "botnet_value": 45, "rep_req": 60,
+		"district": "drowned_quarter", "district_tier": 6, "required_gear": "rig_ghostroot",
+		"cryptogram_req": true, "loot_item": "zero_day_cache",
+	},
 }
 
 const UPGRADES := {
@@ -107,11 +115,6 @@ const UPGRADES := {
 		"name": "Maglev Deck",
 		"desc": "Frictionless mag-lev upgrade. +120% move speed. The city shrinks.",
 		"price": 1200, "req": "hoverboard",
-	},
-	"robo_pet": {
-		"name": "Byte (Robot Dog)",
-		"desc": "A salvaged companion drone. Follows you everywhere. Good boy.",
-		"price": 400, "req": "",
 	},
 	"ram_upgrade": {
 		"name": "RAM Upgrade",
@@ -144,6 +147,64 @@ const UPGRADES := {
 		"price": 4500, "req": "server_rack",
 	},
 }
+
+const PETS := {
+	"dog": {
+		"name": "Byte (Robot Dog)",
+		"desc": "A salvaged companion drone with a bitey counter-intrusion suite.",
+		"price": 400, "ability": "+2 cyber-attack", "attack": 2, "stealth": 0,
+		"cash_mult": 0.0, "cool": 0, "color": "7adfff",
+	},
+	"cat": {
+		"name": "Null (Shadow Cat)",
+		"desc": "Sleeps on warm routers and somehow knows where the cameras are.",
+		"price": 520, "ability": "+1 stealth", "attack": 0, "stealth": 1,
+		"cash_mult": 0.0, "cool": 0, "color": "b277e0",
+	},
+	"bird": {
+		"name": "Cache (Courier Bird)",
+		"desc": "A jittery delivery drone that skims better tips and scrap buyers.",
+		"price": 480, "ability": "+10% cash gains", "attack": 0, "stealth": 0,
+		"cash_mult": 0.10, "cool": 0, "color": "ffd166",
+	},
+	"lizard": {
+		"name": "Glitch (Thermal Lizard)",
+		"desc": "A heat-sink crawler that helps your trail cool faster overnight.",
+		"price": 650, "ability": "+3 Heat cooldown/day", "attack": 0, "stealth": 0,
+		"cash_mult": 0.0, "cool": 3, "color": "7ee787",
+	},
+}
+
+const CRYPTOGRAM_CLUES := [
+	{
+		"id": "plaza_cipher", "district": "plaza", "title": "Cipher Fragment 1",
+		"encoded": "WKH ILUVW NHB VLWV XQGHU WKH ORXGHVW OLJKW.",
+		"plain": "THE FIRST KEY SITS UNDER THE LOUDEST LIGHT.",
+		"hint": "Caesar -3. Start where the Plaza signs never sleep.",
+		"pos3d": [34, 36], "pos2d": [610, 650],
+	},
+	{
+		"id": "market_cipher", "district": "market", "title": "Cipher Fragment 2",
+		"encoded": "GUR FRPBAQ XRL VF OHEVRQ VA GUR FPEBCCRQ ENVQ.",
+		"plain": "THE SECOND KEY IS BURIED IN THE SCRAPPED RAID.",
+		"hint": "ROT13. The Market remembers every busted drive.",
+		"pos3d": [42, 23], "pos2d": [700, 390],
+	},
+	{
+		"id": "underpass_cipher", "district": "underpass", "title": "Cipher Fragment 3",
+		"encoded": "13-15-20-8-5-18 / 12-15-4-5 / 12-9-19-20-5-14-19.",
+		"plain": "MOTHER LODE LISTENS.",
+		"hint": "A1Z26. The tunnel repeats what the city drops.",
+		"pos3d": [20, 10], "pos2d": [420, 260],
+	},
+	{
+		"id": "corp_cipher", "district": "corp_row", "title": "Cipher Fragment 4",
+		"encoded": "bW90aGVybG9kZV92YXVsdCBhd2FpdHMgYSBnaG9zdCByaWcu",
+		"plain": "motherlode_vault awaits a ghost rig.",
+		"hint": "Base64. Corp Row leaves clean breadcrumbs.",
+		"pos3d": [31, 30], "pos2d": [860, 520],
+	},
+]
 
 # Travelable districts. status_req indexes STATUS_RANKS; 0 = always open.
 const DISTRICTS := {
@@ -340,6 +401,8 @@ const ITEMS := {
 	"circuit_gold": {"name": "Gold-Trace Board", "price": 70},
 	"salvaged_rig": {"name": "Salvaged Rig Core", "price": 120},
 	"crypto_wallet": {"name": "Forgotten Wallet", "price": 200},
+	"zero_day_cache": {"name": "Zero-Day Cache", "price": 2500,
+		"desc": "A motherlode bundle of exploits, creds, and sellable leverage."},
 	"r10t_root_key": {"name": "R10T Root Key", "price": 0, "key_item": true,
 		"desc": "Riot's private trunk credential. The city core will not open without it."},
 }
@@ -388,6 +451,13 @@ static func district_tier_name(district: String) -> String:
 	if tier <= 0:
 		return str(d.get("name", "Unknown"))
 	return "tier %d %s" % [tier, str(d.get("name", "Unknown"))]
+
+
+static func cryptogram_clue(id: String) -> Dictionary:
+	for clue in CRYPTOGRAM_CLUES:
+		if str(clue.get("id", "")) == id:
+			return clue
+	return {}
 
 # Buyable, repeatable, usable items. Effects applied by GameState.use_consumable:
 #   energy : restores Energy (capped at max)

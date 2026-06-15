@@ -21,6 +21,7 @@ var _spawns := {}  # spawn id -> Vector2
 func build(p_main: Node) -> void:
 	main = p_main
 	_build()
+	_render_cryptogram_clues()
 
 
 # Override in subclasses. Set area_size, then lay out the district.
@@ -83,6 +84,27 @@ func _interactable(prompt: String, pos: Vector2, size: Vector2, color: Color, la
 	add_child(obj)
 	obj.configure(prompt, action, size, color, label)
 	return obj
+
+
+func _render_cryptogram_clues() -> void:
+	var district_id := ""
+	if main != null:
+		var cur: Variant = main.get("current_district_id")
+		if cur is String:
+			district_id = cur
+	for clue in GameData.CRYPTOGRAM_CLUES:
+		if str(clue.get("district", "")) != district_id:
+			continue
+		var pos_arr: Array = clue.get("pos2d", [area_size.x / 2.0, area_size.y / 2.0])
+		var clue_id := str(clue.id)
+		var marker := _interactable("Decode cryptogram", Vector2(float(pos_arr[0]), float(pos_arr[1])),
+				Vector2(58, 58), Color("1fb89e"), "CIPHER",
+				func() -> void:
+					if main != null and main.has_method("show_cryptogram_clue"):
+						main.show_cryptogram_clue(clue_id)
+					else:
+						GameState.solve_cryptogram(clue_id))
+		marker.add_to_group("cryptogram_clue")
 
 
 # A door to another district. Locked doors show a status requirement instead

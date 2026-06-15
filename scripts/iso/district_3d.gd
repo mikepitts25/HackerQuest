@@ -104,6 +104,7 @@ func build(p_main: Node) -> void:
 		_spawn_hoverboarders(_hoverboarder_count())
 	_spawn_traffic()
 	_render_job_markers()
+	_render_cryptogram_clues()
 	_spawn_street_encounter()
 
 
@@ -250,6 +251,28 @@ func _box_interactable(prompt: String, pos: Vector2, size: Vector3, color: Color
 	if label != "":
 		_sign(label, pos, size.y + 0.45, 36)
 	return _interact(holder, prompt, size, action)
+
+
+func _render_cryptogram_clues() -> void:
+	var district_id := ""
+	if main != null:
+		var cur: Variant = main.get("current_district_id")
+		if cur is String:
+			district_id = cur
+	for clue in GameData.CRYPTOGRAM_CLUES:
+		if str(clue.get("district", "")) != district_id:
+			continue
+		var pos_arr: Array = clue.get("pos3d", [area_size.x / 2.0, area_size.y / 2.0])
+		var pos := Vector2(float(pos_arr[0]), float(pos_arr[1]))
+		var clue_id := str(clue.id)
+		var marker := _box_interactable("Decode cryptogram", pos, Vector3(0.75, 0.18, 0.75),
+				Color(0.12, 0.72, 0.62), "CIPHER",
+				func() -> void:
+					if main != null and main.has_method("show_cryptogram_clue"):
+						main.show_cryptogram_clue(clue_id)
+					else:
+						GameState.solve_cryptogram(clue_id))
+		marker.add_to_group("cryptogram_clue")
 
 
 # A door to another district: glowing arch + travel interactable. Locked

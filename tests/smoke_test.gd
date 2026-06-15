@@ -17,6 +17,8 @@ class FakeMain:
 		pass
 	func talk_npc(_npc_id: String) -> void:
 		pass
+	func open_pet_shop() -> void:
+		pass
 	func roll_street_encounter(_district_id: String) -> String:
 		return forced_street_enemy
 	func start_street_combat(enemy_id: String) -> void:
@@ -226,7 +228,34 @@ func _ready() -> void:
 	_check(GameState.max_cpu == 6 and GameState.cpu == 6, "laptop grants 6 CPU")
 	_check(GameState.buy_upgrade("vpn"), "buy vpn (prereq satisfied)")
 	_check(not GameState.buy_upgrade("vpn"), "vpn not buyable twice")
+	_check(not GameData.UPGRADES.has("robo_pet"), "robot dog moved out of pawn upgrades")
 	shop.close_shop()
+
+	# --- pet shop / companion perks ---
+	_check(GameData.PETS.has("dog") and GameData.PETS.has("cat") and GameData.PETS.has("bird"),
+			"pet shop carries dog, cat, and bird companions")
+	GameState.cash = 5000
+	GameState.skills["hustle"] = 0
+	GameState.skills["stealth"] = 0
+	GameState.owned_pets = [] as Array[String]
+	GameState.active_pet = ""
+	var atk_before := GameState.total_cyber_attack()
+	_check(GameState.buy_pet("dog"), "buy dog companion")
+	_check(GameState.active_pet == "dog", "first bought pet becomes active")
+	_check(GameState.total_cyber_attack() == atk_before + int(GameData.PETS["dog"].attack),
+			"dog companion grants attack")
+	_check(GameState.buy_pet("cat"), "buy cat companion")
+	GameState.equip_pet("cat")
+	_check(GameState.combat_stats().stealth == int(GameData.PETS["cat"].stealth),
+			"cat companion grants stealth")
+	var base_hustle := 1.0 + 0.15 * GameState.skill("hustle")
+	_check(GameState.buy_pet("bird"), "buy bird companion")
+	GameState.equip_pet("bird")
+	_check(GameState.hustle_mult() > base_hustle, "bird companion boosts cash multiplier")
+	hud.show_pet_shop()
+	await get_tree().process_frame
+	_check(_modal_panel_fits_viewport(hud, "PET SHOP"), "pet shop modal fits viewport")
+	hud.close_blocking_ui()
 
 	# --- terminal commands ---
 	GameState.cpu = 10
@@ -491,6 +520,7 @@ func _ready() -> void:
 	plaza3d.build(FakeMain.new())
 	await get_tree().process_frame
 	_check(_has_label3d_text(plaza3d, "Pix\n(starter mentor)"), "named NPC labels include role descriptions")
+	_check(_has_label3d_text(plaza3d, "PET SHOP"), "plaza has a visible pet shop")
 	remove_child(plaza3d)
 	plaza3d.queue_free()
 
@@ -519,6 +549,15 @@ func _ready() -> void:
 	_check(GameState.heat_cooldown_per_day() == 22, "stealth speeds cooling")
 	GameState.skills["stealth"] = 0
 	_check(GameData.TARGETS.has("ai_datacenter"), "endgame target exists")
+	_check(GameData.TARGETS.has("motherlode_vault"), "cryptogram motherlode target exists")
+	_check(GameData.CRYPTOGRAM_CLUES.size() >= 4, "cryptogram clues are scattered through districts")
+	GameState.solved_cryptograms = [] as Array[String]
+	_check(not GameState.cryptogram_complete(), "cryptogram trail starts incomplete")
+	_check(not GameState.target_unlocked("motherlode_vault"), "motherlode target is locked until clues are solved")
+	for clue in GameData.CRYPTOGRAM_CLUES:
+		GameState.solve_cryptogram(str(clue.id))
+	_check(GameState.cryptogram_complete(), "solving every cryptogram completes the trail")
+	_check(GameState.target_unlocked("motherlode_vault"), "motherlode target unlocks after cryptogram completion")
 
 	# Status gates prestige cosmetics.
 	GameState.reputation = 0

@@ -14,6 +14,8 @@ func _build() -> void:
 
 	_interactable("Check jobs", Vector2(420, 230), Vector2(120, 76), Color("8a5a2b"), "JOB BOARD",
 			func() -> void: main.show_jobs())
+	_interactable("Visit pet shop", Vector2(760, 620), Vector2(130, 84), Color("2f8f8a"), "PET SHOP",
+			func() -> void: main.open_pet_shop())
 
 	_spawn_npcs("plaza")
 

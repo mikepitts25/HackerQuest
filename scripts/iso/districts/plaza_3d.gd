@@ -25,6 +25,9 @@ func _build() -> void:
 	_box_interactable("Help out (favors)", Vector2(28, 12), Vector3(0.9, 1.3, 0.25),
 			Color(0.227, 0.651, 0.541), "FAVORS",
 			func() -> void: main.open_favors())
+	_box_interactable("Visit pet shop", Vector2(39, 37), Vector3(2.2, 1.2, 1.2),
+			Color(0.18, 0.56, 0.54), "PET SHOP",
+			func() -> void: main.open_pet_shop())
 
 	# Food on the square — a noodle bar and a coffee cart you can actually use.
 	_eatery("Synth-Noodle Bar", Vector2(16, 11), 12, 4, Color(1.0, 0.45, 0.7), 90)
