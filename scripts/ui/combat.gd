@@ -8,6 +8,8 @@ extends Panel
 ## Mirrors the terminal/shop panel pattern: a full-rect Panel, built in code,
 ## opened with the UI lock held.
 
+signal closed(enemy_id: String, outcome: String)
+
 const CombatSessionScript := preload("res://scripts/combat/combat_session.gd")
 
 const C_GREEN := Color("7ee787")
@@ -51,10 +53,25 @@ func start(enemy_id: String) -> void:
 	_prev_player_hp = _session.player_hp
 	_prev_enemy_hp = _session.enemy_hp
 	visible = true
+	_play_open_animation()
 	GameState.lock_ui()
 	_start_boss_audio()
 	_render()
 	_render_actions("choose")
+
+
+func _play_open_animation() -> void:
+	pivot_offset = size * 0.5
+	modulate.a = 0.0
+	scale = Vector2(0.975, 0.975)
+	set_meta("animating_in", true)
+	set_meta("animating_out", false)
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(self, "modulate:a", 1.0, 0.18)
+	tw.tween_property(self, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.finished.connect(func() -> void:
+		if is_inside_tree():
+			set_meta("animating_in", false))
 
 
 # R10T and his crew get a signature arrival sting and swap the district track
@@ -411,20 +428,31 @@ func _on_continue() -> void:
 	# bust dialog (on a loss) doesn't stack on top of combat.
 	var was_tracker: bool = _session.enemy_id == "tracker_unit"
 	var won: bool = _session.outcome == _session.WIN
-	visible = false
-	GameState.unlock_ui()
+	var closed_enemy_id: String = _session.enemy_id
+	var closed_outcome: String = _session.outcome
 	# Drop the boss theme and bring the district track back (only boss fights
 	# swapped it; ordinary ambushes left the district music playing).
 	if _boss_audio:
 		Audio.music(_prev_music)
 		_boss_audio = false
 		_prev_music = ""
+	set_meta("animating_out", true)
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(self, "modulate:a", 0.0, 0.16)
+	tw.tween_property(self, "scale", Vector2(1.018, 1.018), 0.16).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	await tw.finished
+	visible = false
+	scale = Vector2.ONE
+	modulate.a = 1.0
+	set_meta("animating_out", false)
+	GameState.unlock_ui()
 	_session = null
 	if was_tracker and GameState.trace_active:
 		if won:
 			GameState.defeat_trace()
 		else:
 			GameState.lose_trace_fight()
+	closed.emit(closed_enemy_id, closed_outcome)
 
 
 # --- outcome / rewards --------------------------------------------------------

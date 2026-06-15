@@ -77,6 +77,8 @@ var _buildings: Array = []       # {node, tall} — for botnet LEDs
 # (and tuck the shady ones into back corners) without touching GameData.NPCS —
 # which the legacy 2D shell still reads at its original small scale.
 var _npc_overrides := {}
+var _active_street_hostile: Node3D
+var _street_encounter_started := false
 
 # Where ambient wanderers may roam. Empty = the whole district (minus a
 # margin). Districts with interiors (the apartment) restrict this so
@@ -102,6 +104,7 @@ func build(p_main: Node) -> void:
 		_spawn_hoverboarders(_hoverboarder_count())
 	_spawn_traffic()
 	_render_job_markers()
+	_spawn_street_encounter()
 
 
 # Override in subclasses. Set area_size, then lay out the district.
@@ -470,6 +473,135 @@ func _spawn_hoverboarders(n: int) -> void:
 		var nm: String = GameData.CITIZEN_NAMES.pick_random()
 		_interact(ch, "Greet %s" % nm, Vector3(0.6, 1.3, 0.6),
 				func() -> void: main.talk_wanderer(nm))
+
+
+# Hostile street encounters replace the old on-entry modal ambush. The district
+# owns a visible runner; touching or interacting with them starts the fight.
+func _spawn_street_encounter() -> void:
+	if main == null or not main.has_method("roll_street_encounter"):
+		return
+	var here: String = main.current_district_id if main else ""
+	if here == "":
+		return
+	var enemy_id: String = main.roll_street_encounter(here)
+	if enemy_id == "" or not GameData.ENEMIES.has(enemy_id):
+		return
+	var margin := 1.4
+	var zone := wander_zone
+	if zone.size == Vector2.ZERO:
+		zone = Rect2(margin, margin, area_size.x - margin * 2.0, area_size.y - margin * 2.0)
+	if zone.size.x <= 0.0 or zone.size.y <= 0.0:
+		return
+	var enemy: Dictionary = GameData.ENEMIES[enemy_id]
+	var ch: Node3D = load(CITIZEN_SCENE).instantiate()
+	ch.set_script(WandererScript)
+	ch.name = "StreetEncounter_%s" % enemy_id
+	ch.add_to_group("street_encounter")
+	ch.set_meta("enemy_id", enemy_id)
+	ch.area_center = Vector3(zone.get_center().x, 0, zone.get_center().y)
+	ch.area_size = zone.size
+	ch.speed = 1.35
+	ch.position = Vector3(
+		randf_range(zone.position.x, zone.end.x), 0,
+		randf_range(zone.position.y, zone.end.y))
+	add_child(ch)
+	_tint_body(ch, Color("ff5a66") if enemy_id == "r10t" else Color("c84b55"))
+	_vary_citizen(ch)
+	var trigger := _interact(ch, "Bump into %s" % enemy.name, Vector3(1.0, 1.5, 1.0),
+			func() -> void: _begin_street_encounter(enemy_id, ch))
+	trigger.add_to_group("street_encounter_trigger")
+	trigger.body_entered.connect(func(body: Node3D) -> void:
+		if body.is_in_group("player"):
+			_begin_street_encounter(enemy_id, ch))
+	var label := Label3D.new()
+	label.text = "⚠ %s" % enemy.name
+	label.font_size = 30
+	label.pixel_size = 0.01
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = Color("ff9b9b")
+	label.outline_size = 8
+	label.position = Vector3(0, 1.9, 0)
+	ch.add_child(label)
+
+
+func _begin_street_encounter(enemy_id: String, hostile: Node3D) -> void:
+	if _street_encounter_started or GameState.is_ui_locked():
+		return
+	_street_encounter_started = true
+	_active_street_hostile = hostile
+	if is_instance_valid(hostile):
+		hostile.set_process(false)
+		hostile.set_meta("street_engaged", true)
+	if main != null and main.has_method("start_street_combat"):
+		main.start_street_combat(enemy_id)
+	elif main != null and main.has_method("start_combat"):
+		main.start_combat(enemy_id)
+
+
+func resolve_street_encounter(enemy_id: String, outcome: String) -> void:
+	if not is_instance_valid(_active_street_hostile):
+		return
+	if str(_active_street_hostile.get_meta("enemy_id", "")) != enemy_id:
+		return
+	_active_street_hostile.set_meta("street_fleeing", true)
+	_say_over(_active_street_hostile, _street_exit_line(enemy_id, outcome))
+	_flee_street_hostile(_active_street_hostile)
+	_active_street_hostile = null
+
+
+func _street_exit_line(enemy_id: String, outcome: String) -> String:
+	var enemy: Dictionary = GameData.ENEMIES.get(enemy_id, {})
+	if outcome == "win":
+		return ["lucky shot.", "R10T hears about this.", "not done with you."].pick_random()
+	if outcome == "fled":
+		return ["run then.", "yeah, keep walking.", "signal lost. coward."].pick_random()
+	var taunts: Array = enemy.get("taunts", [])
+	if not taunts.is_empty():
+		return str(taunts.pick_random())
+	return ["stay down.", "too easy.", "wrong street."].pick_random()
+
+
+func _say_over(node: Node3D, line: String) -> void:
+	var bubble := Label3D.new()
+	bubble.text = line
+	bubble.font_size = 28
+	bubble.pixel_size = 0.01
+	bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	bubble.outline_size = 8
+	bubble.modulate = Color("ffd166")
+	bubble.position = Vector3(0, 1.9, 0)
+	node.add_child(bubble)
+
+
+func _flee_street_hostile(hostile: Node3D) -> void:
+	for child in hostile.get_children():
+		if child is Area3D:
+			(child as Area3D).monitoring = false
+			(child as Area3D).monitorable = false
+	var player := get_tree().get_first_node_in_group("player") as Node3D
+	var away := Vector3(1, 0, 0)
+	if player != null:
+		away = hostile.global_position - player.global_position
+		away.y = 0.0
+		if away.length() < 0.1:
+			away = Vector3(1, 0, 0)
+	away = away.normalized()
+	hostile.rotation.y = atan2(away.x, away.z)
+	var target := hostile.position + away * 7.0
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(hostile, "position", target, 0.75).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_property(hostile, "scale", Vector3.ONE * 0.75, 0.75)
+	_fade_meshes(hostile, tw)
+	tw.finished.connect(func() -> void:
+		if is_instance_valid(hostile):
+			hostile.queue_free())
+
+
+func _fade_meshes(node: Node, tween: Tween) -> void:
+	if node is MeshInstance3D:
+		tween.tween_property(node, "transparency", 0.8, 0.55).set_delay(0.2)
+	for child in node.get_children():
+		_fade_meshes(child, tween)
 
 
 # Spawns the cars defined in `traffic_lanes`, evenly spaced along each loop.

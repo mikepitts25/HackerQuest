@@ -51,6 +51,7 @@ func _ready() -> void:
 	GameState.jobs_changed.connect(_on_jobs_changed)
 	GameState.stats_changed.connect(_update_daylight)
 	GameState.stats_changed.connect(_check_morning_news)
+	combat.closed.connect(_on_combat_closed)
 	_news_day = GameState.day
 	_enc_rng.randomize()
 	Audio.apply_volumes()  # a loaded save may carry custom volumes
@@ -120,7 +121,6 @@ func go_to(district_id: String, spawn_id: String) -> void:
 	player.reset_proximity()
 	GameState.touch_vector = Vector2.ZERO
 	Audio.music(DISTRICT_MUSIC.get(district_id, "city"))
-	_maybe_encounter(district_id)
 
 
 func do_sleep() -> void:
@@ -146,6 +146,20 @@ func start_combat(enemy_id: String) -> void:
 	combat.start(enemy_id)
 
 
+func start_street_combat(enemy_id: String) -> void:
+	if enemy_id == "r10t":
+		_on_toast("// UNKNOWN SIGNAL converging on your position...", GameState.COL_BAD)
+	else:
+		_on_toast("AMBUSH — %s makes contact." % GameData.ENEMIES[enemy_id].name, GameState.COL_BAD)
+	start_combat(enemy_id)
+
+
+func _on_combat_closed(enemy_id: String, outcome: String) -> void:
+	var district := world_container.get_child(0) if world_container.get_child_count() > 0 else null
+	if district != null and district.has_method("resolve_street_encounter"):
+		district.resolve_street_encounter(enemy_id, outcome)
+
+
 # --- street encounters (G6 phase 3) -------------------------------------------
 
 const NO_ENCOUNTER_DISTRICTS := ["home", "corp_datacenter"]
@@ -162,30 +176,21 @@ var _enc_rng := RandomNumberGenerator.new()
 var _travels_since_combat := 99  # high so the first trip out can spring one
 
 
-# Roll for an ambush on entering a district. Gated: not your apartment, not
-# mid-trace, not while a modal's up, and a few safe travels since the last
-# fight. Deferred a frame so the district finishes building and the player is
-# placed before the panel opens.
-func _maybe_encounter(district_id: String) -> void:
+# Roll for a hostile street NPC to spawn in the district. The fight itself only
+# starts when the player collides with/touches that NPC.
+func roll_street_encounter(district_id: String) -> String:
 	_travels_since_combat += 1
 	if district_id in NO_ENCOUNTER_DISTRICTS or GameState.trace_active or GameState.is_ui_locked():
-		return
+		return ""
 	if _travels_since_combat < ENCOUNTER_COOLDOWN:
-		return
+		return ""
 	var enemy_id := roll_encounter(
 		GameState.status_index(), GameState.heat, GameState.r10t_beaten,
 		GameState.combat_stats().attack, _enc_rng, district_id, GameState.defeated_crew_bosses)
 	if enemy_id == "":
-		return
+		return ""
 	_travels_since_combat = 0
-	await get_tree().process_frame
-	if GameState.is_ui_locked():  # a dialog/modal opened in the gap — don't stack
-		return
-	if enemy_id == "r10t":
-		_on_toast("// UNKNOWN SIGNAL converging on your position...", GameState.COL_BAD)
-	else:
-		_on_toast("AMBUSH — someone's been waiting for you.", GameState.COL_BAD)
-	start_combat(enemy_id)
+	return enemy_id
 
 
 # Pure encounter decision (no node/GameState deps, so it's unit-testable).

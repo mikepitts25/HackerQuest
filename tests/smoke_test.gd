@@ -9,10 +9,18 @@ var _failures: Array[String] = []
 class FakeMain:
 	extends Node
 	var current_district_id := "drowned_quarter"
+	var forced_street_enemy := ""
+	var street_combat_started := ""
 	func go_to(_district_id: String, _spawn_id: String) -> void:
 		pass
 	func talk_wanderer(_npc_name: String) -> void:
 		pass
+	func talk_npc(_npc_id: String) -> void:
+		pass
+	func roll_street_encounter(_district_id: String) -> String:
+		return forced_street_enemy
+	func start_street_combat(enemy_id: String) -> void:
+		street_combat_started = enemy_id
 
 
 func _check(cond: bool, what: String) -> void:
@@ -157,6 +165,16 @@ func _has_label3d_text(node: Node, text: String) -> bool:
 		if _has_label3d_text(child, text):
 			return true
 	return false
+
+
+func _first_in_group_under(node: Node, group_name: String) -> Node:
+	if node.is_in_group(group_name):
+		return node
+	for child in node.get_children():
+		var found := _first_in_group_under(child, group_name)
+		if found != null:
+			return found
+	return null
 
 
 func _ready() -> void:
@@ -779,6 +797,30 @@ func _ready() -> void:
 	_check(rider.get("_board") != null, "hoverboarder spawns with a glowing deck")
 	rider.queue_free()
 
+	# --- street encounters: contact NPCs trigger fights, then flee afterward ---
+	var street_fake := FakeMain.new()
+	street_fake.current_district_id = "plaza"
+	street_fake.forced_street_enemy = "street_hacker"
+	var street_district: Node3D = load("res://scenes/iso/districts/plaza_3d.tscn").instantiate()
+	add_child(street_district)
+	street_district.build(street_fake)
+	await get_tree().process_frame
+	var hostile := _first_in_group_under(street_district, "street_encounter")
+	var hostile_trigger := _first_in_group_under(street_district, "street_encounter_trigger")
+	_check(hostile != null, "street encounter spawns a visible hostile NPC")
+	_check(hostile_trigger != null, "street encounter has a collision trigger")
+	if hostile_trigger != null and hostile_trigger.has_method("interact"):
+		hostile_trigger.call("interact")
+	_check(street_fake.street_combat_started == "street_hacker", "street encounter contact starts combat")
+	if street_district.has_method("resolve_street_encounter"):
+		street_district.call("resolve_street_encounter", "street_hacker", "win")
+		await get_tree().process_frame
+		_check(hostile != null and hostile.get_meta("street_fleeing", false), "street encounter NPC taunts and flees after combat")
+	else:
+		_check(false, "district can resolve street encounter aftermath")
+	remove_child(street_district)
+	street_district.queue_free()
+
 	# --- combat core (G6) ---
 	var CombatSession := load("res://scripts/combat/combat_session.gd")
 	# Overwhelming player one-shots a weak enemy → WIN.
@@ -786,6 +828,19 @@ func _ready() -> void:
 	cs1.init({"attack": 100, "defense": 5, "integrity": 50, "crit": 0.0, "stealth": 0}, "script_kid", 1)
 	cs1.player_exploit()
 	_check(cs1.outcome == cs1.WIN, "combat: strong player wins")
+	var combat_anim_panel: Panel = load("res://scenes/ui/combat.tscn").instantiate()
+	add_child(combat_anim_panel)
+	combat_anim_panel.start("script_kid")
+	_check(combat_anim_panel.visible and combat_anim_panel.get_meta("animating_in", false),
+			"combat panel animates in when a fight starts")
+	var anim_session = combat_anim_panel.get("_session")
+	anim_session.outcome = anim_session.WIN
+	combat_anim_panel.call("_on_continue")
+	await get_tree().process_frame
+	_check(combat_anim_panel.get_meta("animating_out", false), "combat panel animates away after a fight")
+	await get_tree().create_timer(0.25).timeout
+	remove_child(combat_anim_panel)
+	combat_anim_panel.queue_free()
 	var combat_panel: Panel = load("res://scenes/ui/combat.tscn").instantiate()
 	add_child(combat_panel)
 	combat_panel.visible = true
