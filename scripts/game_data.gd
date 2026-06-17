@@ -335,7 +335,7 @@ const DISTRICT_MAP := {
 # Main.talk_npc(id).
 const NPCS := {
 	"pix": {"name": "Pix", "district": "plaza", "pos": [820, 480], "color": "b277e0", "role": "starter mentor"},
-	"riot": {"name": "Riot", "district": "plaza", "pos": [520, 420], "color": "3aa68a", "role": "rival hacker"},
+	"riot": {"name": "R10T", "district": "plaza", "pos": [520, 420], "color": "3aa68a", "role": "rival hacker"},
 	"glitch": {"name": "Glitch", "district": "plaza", "pos": [960, 380], "color": "e0894a", "role": "street tips"},
 	"marlowe": {"name": "Marlowe", "district": "plaza", "pos": [680, 600], "color": "3b5dc9", "role": "heat fixer"},
 	"vex": {"name": "Vex", "district": "market", "pos": [320, 300], "color": "c060c0", "role": "data fence"},
@@ -404,7 +404,7 @@ const ITEMS := {
 	"zero_day_cache": {"name": "Zero-Day Cache", "price": 2500,
 		"desc": "A motherlode bundle of exploits, creds, and sellable leverage."},
 	"r10t_root_key": {"name": "R10T Root Key", "price": 0, "key_item": true,
-		"desc": "Riot's private trunk credential. The city core will not open without it."},
+		"desc": "R10T's private trunk credential. The city core will not open without it."},
 }
 
 # Weighted pool for alley scavenging (GPU is the rare find).
@@ -530,6 +530,18 @@ const ENEMIES := {
 		"flee": false, "tier": 2,
 		"intro": "The trace resolves into a corp enforcer. No more running.",
 		"taunts": ["located.", "hold still.", "resistance logged."]},
+	# The café duel with R10T — your rival, the same handle you meet again at the
+	# bay as the Trunk's human form. This is the earlier, human skirmish:
+	# survivable, no root key, and it doesn't touch the endgame `r10t` boss gate.
+	"riot": {
+		"name": "R10T", "integrity": 82, "attack": 15, "defense": 9, "crit": 0.15,
+		"moveset": ["exploit", "ddos", "exploit", "firewall", "exploit"],
+		"loot": {"cash": [400, 600], "xp": 110, "rep": 6},
+		"flee": false, "tier": 4,
+		"intro": "R10T kicks the cafe door open, eyes sweeping the booths you just drained. \"That was MY house LAN. You don't get to walk in and own my room.\"",
+		"taunts": ["You hacked my whole cafe and thought I wouldn't feel it?",
+			"Every laptop in here routes back to me, genius.",
+			"Rivalry's one thing. Robbing me in my own room? Sit DOWN."]},
 	"byte_bully": {
 		"name": "Byte Bully", "integrity": 38, "attack": 7, "defense": 4, "crit": 0.06,
 		"moveset": ["exploit", "exploit", "ddos", "firewall"],
@@ -580,6 +592,17 @@ const ENEMIES := {
 		"intro": "R10T's implanted body steps out of the feed — the Trunk's human form, smiling with borrowed teeth.",
 		"taunts": ["the implant fits better every day.", "you fought a mask, not the machine.",
 			"the Trunk is done pretending to be human."]},
+	# The Drowned Quarter rematch — R10T a notch stronger than the café duel, run
+	# as a phased gauntlet: at half integrity Deep Marrow throws himself in to
+	# cover him (combat_session._gauntlet_*), and once the crew boss is down you
+	# finish R10T and take his root key. "gauntlet" drives the mid-fight swaps.
+	"r10t_final": {
+		"name": "R10T", "integrity": 112, "attack": 18, "defense": 11, "crit": 0.17,
+		"moveset": ["exploit", "ddos", "exploit", "firewall", "ddos", "exploit"],
+		"loot": {"cash": [700, 1000], "xp": 160, "rep": 8, "item": "r10t_root_key"},
+		"flee": false, "boss": true, "tier": 6, "gauntlet": true,
+		"intro": "R10T is waiting on the walkway over the black water. \"You followed me to the bay. Stupid. This is where I stop being polite.\"",
+		"taunts": ["You should have stayed in my café.", "The water's patient. So am I.", "DEEP MARROW. Now."]},
 	"trunk": {
 		"name": "THE TRUNK", "integrity": 170, "attack": 25, "defense": 18, "crit": 0.18,
 		"moveset": ["trace_lock", "ddos", "firewall", "exploit", "ddos", "trace_lock"],

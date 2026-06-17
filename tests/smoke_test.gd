@@ -18,6 +18,14 @@ class FakeMain:
 		pass
 	func talk_npc(_npc_id: String) -> void:
 		pass
+	func do_sleep() -> void:
+		pass
+	func use_desk() -> void:
+		pass
+	func open_apartments() -> void:
+		pass
+	func open_furnish() -> void:
+		pass
 	func open_pet_shop() -> void:
 		pass
 	func roll_street_encounter(_district_id: String) -> String:
@@ -257,6 +265,13 @@ func _first_in_group_under(node: Node, group_name: String) -> Node:
 		if found != null:
 			return found
 	return null
+
+
+func _count_in_group_under(node: Node, group_name: String) -> int:
+	var count := 1 if node.is_in_group(group_name) else 0
+	for child in node.get_children():
+		count += _count_in_group_under(child, group_name)
+	return count
 
 
 func _ready() -> void:
@@ -662,7 +677,8 @@ func _ready() -> void:
 	for district_id in ["plaza", "market", "underpass", "corp_row", "darknet", "drowned_quarter"]:
 		_check(district_id in GameData.NPC_SCHEDULE["riot"], "Riot has a scheduled encounter in %s" % district_id)
 		var rlines: Array = NpcDialogs.riot_lines_for_district(district_id)
-		_check(rlines.size() >= 2 and str(rlines[0]).contains("Riot:"), "Riot has district dialogue in %s" % district_id)
+		_check(rlines.size() >= 2 and (str(rlines[0]).contains("Riot:") or str(rlines[0]).contains("R10T:")),
+				"Riot/R10T has district dialogue in %s" % district_id)
 		_check(GameData.RIOT_CREW_BY_DISTRICT.has(district_id), "R10T crew has a mini-boss in %s" % district_id)
 		var crew_id: String = GameData.RIOT_CREW_BY_DISTRICT[district_id]
 		_check(GameData.ENEMIES.has(crew_id), "R10T crew mini-boss enemy exists for %s" % district_id)
@@ -801,6 +817,28 @@ func _ready() -> void:
 	_check(GameState.apartment_perk("cool") == 2, "apartment heat-cooldown perk reads")
 	GameState.reputation = 0  # demote: penthouse should now be gated
 	_check(not GameState.buy_apartment("penthouse"), "status gates premium apartment")
+	var home_scene := load("res://scenes/iso/districts/home_3d.tscn")
+	var apartment_expectations := [
+		{"id": "apt_4b", "label": "APT 4B", "min_area": 80.0},
+		{"id": "studio_loft", "label": "STUDIO LOFT", "min_area": 120.0},
+		{"id": "safehouse", "label": "SAFEHOUSE", "min_area": 170.0},
+		{"id": "penthouse", "label": "SKY PENTHOUSE", "min_area": 230.0},
+	]
+	var previous_home_area := 0.0
+	for apt_info in apartment_expectations:
+		GameState.apartment = apt_info.id
+		var home3d: Node3D = home_scene.instantiate()
+		add_child(home3d)
+		home3d.build(FakeMain.new())
+		await get_tree().process_frame
+		var footprint: float = home3d.area_size.x * home3d.area_size.y
+		_check(footprint >= float(apt_info.min_area), "%s home footprint matches apartment tier" % apt_info.id)
+		_check(footprint > previous_home_area, "%s home footprint is larger than previous tier" % apt_info.id)
+		_check(_has_label3d_text(home3d, apt_info.label), "%s has a distinct apartment sign" % apt_info.id)
+		previous_home_area = footprint
+		remove_child(home3d)
+		home3d.queue_free()
+	GameState.apartment = "apt_4b"
 
 	# --- districts (status-gated) ---
 	GameState.reputation = 0
@@ -1016,6 +1054,19 @@ func _ready() -> void:
 	_check(GameState.inventory.get("r10t_root_key", 0) == 1, "R10T drops the trunk root key")
 	remove_child(combat_panel)
 	combat_panel.queue_free()
+	# Final gauntlet (one session): R10T → Deep Marrow interrupt at half HP →
+	# R10T resumes → WIN. Huge attack one-shots each form so the phases are
+	# deterministic; fat integrity survives the interrupt's free hit.
+	var gaunt = CombatSession.new()
+	gaunt.init({"attack": 500, "defense": 50, "integrity": 9999, "crit": 0.0, "stealth": 0}, "r10t_final", 7)
+	_check(gaunt.enemy.name == "R10T" and gaunt._gauntlet, "gauntlet: opens as R10T")
+	gaunt.player_exploit()
+	_check(gaunt.enemy.name == "Deep Marrow", "gauntlet: Deep Marrow jumps in to cover R10T")
+	_check(gaunt.outcome == gaunt.ONGOING, "gauntlet: fight continues through the interrupt")
+	gaunt.player_exploit()
+	_check(gaunt.enemy.name == "R10T", "gauntlet: R10T returns once Deep Marrow is down")
+	gaunt.player_exploit()
+	_check(gaunt.outcome == gaunt.WIN, "gauntlet: finishing R10T wins the final rematch")
 	var early_r10t = CombatSession.new()
 	early_r10t.init({"attack": 18, "defense": 18, "integrity": 80, "crit": 0.15, "stealth": 3,
 			"endgame_loadout": false}, "r10t", 4)
@@ -1109,12 +1160,9 @@ func _ready() -> void:
 		if e == "r10t":
 			got_r10t = true
 	_check(got_fight, "high heat/status can spring an ambush")
-	_check(got_r10t, "R10T can appear as a boss when unbeaten")
-	var r10t_again := false
-	for i in 300:
-		if Main3D.roll_encounter(3, 100, true, 7, erng) == "r10t":
-			r10t_again = true
-	_check(not r10t_again, "R10T won't reappear once beaten")
+	# R10T no longer roams as a random street boss — his arc is the café duel
+	# (Darknet) → the rematch + Deep Marrow gauntlet (Drowned Quarter).
+	_check(not got_r10t, "R10T no longer roams as a random street boss")
 	# The R10T flag survives a save/load round-trip, then clean up the save.
 	GameState.new_game()
 	GameState.r10t_beaten = true
@@ -1136,6 +1184,18 @@ func _ready() -> void:
 	_check(not GameState.trace_active, "losing the trace fight ends the trace")
 	_check(GameState.cash == 50, "losing the trace fight busts (half cash)")
 	GameState.new_game()
+
+	# --- underpass shade set dressing ---
+	var underpass: Node3D = load("res://scenes/iso/districts/underpass_3d.tscn").instantiate()
+	add_child(underpass)
+	underpass.build(FakeMain.new())
+	await get_tree().process_frame
+	_check(_count_in_group_under(underpass, "underpass_encampment") >= 3, "underpass has homeless encampments")
+	_check(_count_in_group_under(underpass, "underpass_cart") >= 3, "underpass has shopping carts")
+	_check(_count_in_group_under(underpass, "underpass_fire") >= 2, "underpass has dumpster fires")
+	_check(_count_in_group_under(underpass, "underpass_crime") >= 3, "underpass has shady crime vignettes")
+	remove_child(underpass)
+	underpass.queue_free()
 
 	# --- apartments v2: furniture, style, trophies ---
 	_check(GameState.style_score() == 0, "no furniture = no Style")
@@ -1175,8 +1235,12 @@ func _ready() -> void:
 	GameState.completed_contracts = [GameState.final_contract_id()]
 	GameState.inventory.erase("r10t_root_key")
 	GameState.add_item("r10t_root_key")
+	# Trunk is only fightable from the monolith once R10T's been finished in the
+	# drowned gauntlet (which is what drops the key in the live flow).
+	GameState.r10t_finale_won = true
 	drowned.call("_on_trunk")
 	_check(drowned_main.combat_started == "trunk", "ready Trunk interaction starts the Trunk final boss fight")
+	GameState.r10t_finale_won = false
 	remove_child(drowned)
 	drowned.queue_free()
 	GameState.reputation = 999

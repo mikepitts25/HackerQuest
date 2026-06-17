@@ -203,7 +203,7 @@ func _collider(pos: Vector2, size: Vector3) -> void:
 	add_child(body)
 
 
-func _sign(text: String, pos: Vector2, height := 1.9, font_size := 48) -> void:
+func _sign(text: String, pos: Vector2, height := 1.9, font_size := 48) -> Label3D:
 	var l := Label3D.new()
 	l.text = text
 	l.font_size = font_size
@@ -213,6 +213,7 @@ func _sign(text: String, pos: Vector2, height := 1.9, font_size := 48) -> void:
 	l.outline_size = 10
 	l.position = Vector3(pos.x, height, pos.y)
 	add_child(l)
+	return l
 
 
 func _prop(path: String, pos: Vector2, yaw_deg := 0.0) -> Node3D:
@@ -333,7 +334,13 @@ func _spawn_npcs(district_id: String) -> void:
 		var label := "%s\n(%s)" % [npc.name, npc.get("role", "regular")]
 		if not home:
 			label += "\n(visiting)"
-		_sign(label, pos, 1.75, 28)
+		var name_tag := _sign(label, pos, 1.75, 28)
+		# Only ever one R10T in a zone: tag the talkable rival (body + name) so the
+		# roaming boss / café duel can detect and replace this version (_has_r10t_
+		# avatar, _clear_r10t_avatars).
+		if npc_id == "riot":
+			ch.add_to_group("r10t_avatar")
+			name_tag.add_to_group("r10t_avatar")
 
 
 # Ambient friendly NPCs currently roaming this district (see GameState.ambient).
@@ -502,6 +509,24 @@ func _spawn_hoverboarders(n: int) -> void:
 				func() -> void: main.talk_wanderer(nm))
 
 
+# --- one R10T per zone --------------------------------------------------------
+# R10T shows up three ways — the talkable rival NPC (_spawn_npcs), a roaming
+# r10t boss street encounter, and the darknet café duel (darknet_3d._summon_riot).
+# All three tag their node into group "r10t_avatar"; these let each spawner make
+# sure it never adds a second R10T to a district that already has one.
+func _has_r10t_avatar() -> bool:
+	for n in get_tree().get_nodes_in_group("r10t_avatar"):
+		if is_ancestor_of(n):
+			return true
+	return false
+
+
+func _clear_r10t_avatars() -> void:
+	for n in get_tree().get_nodes_in_group("r10t_avatar"):
+		if is_ancestor_of(n):
+			n.queue_free()
+
+
 # Hostile street encounters replace the old on-entry modal ambush. The district
 # owns a visible runner; touching or interacting with them starts the fight.
 func _spawn_street_encounter() -> void:
@@ -512,6 +537,10 @@ func _spawn_street_encounter() -> void:
 		return
 	var enemy_id: String = main.roll_street_encounter(here)
 	if enemy_id == "" or not GameData.ENEMIES.has(enemy_id):
+		return
+	# Never a second R10T: if the rival (or a café duel) is already in this zone,
+	# skip the roaming r10t ambush this time.
+	if enemy_id == "r10t" and _has_r10t_avatar():
 		return
 	var margin := 1.4
 	var zone := wander_zone
@@ -532,6 +561,8 @@ func _spawn_street_encounter() -> void:
 		randf_range(zone.position.x, zone.end.x), 0,
 		randf_range(zone.position.y, zone.end.y))
 	add_child(ch)
+	if enemy_id == "r10t":
+		ch.add_to_group("r10t_avatar")  # one R10T per zone
 	_tint_body(ch, Color("ff5a66") if enemy_id == "r10t" else Color("c84b55"))
 	_vary_citizen(ch)
 	var trigger := _interact(ch, "Bump into %s" % enemy.name, Vector3(1.0, 1.5, 1.0),
@@ -1193,7 +1224,7 @@ func _bench(pos: Vector2, yaw_deg := 0.0) -> void:
 # booth's light; `glow` tints the screen, `occupied` seats a silhouette, `lit`
 # adds a real (perf-costed) monitor light, `tag` stamps a small station number.
 # Booth faces -z (screen at the back, patron on the +z side); `yaw_deg` aims it.
-func _workstation(pos: Vector2, yaw_deg := 0.0, glow := Color(0.3, 0.9, 0.8), occupied := false, lit := false, tag := "") -> void:
+func _workstation(pos: Vector2, yaw_deg := 0.0, glow := Color(0.3, 0.9, 0.8), occupied := false, lit := false, tag := "") -> Node3D:
 	var holder := Node3D.new()
 	holder.position = Vector3(pos.x, 0, pos.y)
 	holder.rotation.y = deg_to_rad(yaw_deg)
@@ -1276,6 +1307,7 @@ func _workstation(pos: Vector2, yaw_deg := 0.0, glow := Color(0.3, 0.9, 0.8), oc
 		lbl.rotation.y = deg_to_rad(90)
 		holder.add_child(lbl)
 	_collider(pos, Vector3(0.95, 1.2, 0.95))
+	return holder
 
 
 # A glowing drinks cooler / vending machine — a tall dark cabinet with a bright

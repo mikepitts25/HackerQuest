@@ -43,6 +43,8 @@ const PERSISTED := [
 	"mastery", "favors_done", "goods", "handle", "skin_tone", "background",
 	"scrap_bounty_done", "owned_gear", "gear", "r10t_beaten", "owned_furniture",
 	"defeated_crew_bosses", "owned_pets", "active_pet", "solved_cryptograms",
+	"cafe_rig_rented", "cafe_hacked", "cafe_riot_beaten",
+	"r10t_finale_won", "game_beaten",
 	"music_vol", "sfx_vol",
 ]
 
@@ -96,6 +98,20 @@ var hacked_ever := {}      # target_id -> true; never resets (quest tracking)
 var exploited := {}        # target_id -> true; reset on sleep (targets get re-secured)
 var botted := {}           # target_id -> true; permanent
 var trash_searched := {}   # pile_id -> true; reset on sleep
+
+# Darknet Café side-arc: rent the back rig ($5/hr) to open the café LAN, then
+# drain the other patrons' laptops. Clearing the room the first time summons
+# R10T for a duel. The rental and the per-day drains reset on sleep; beating
+# R10T is permanent (he doesn't ambush the café twice).
+var cafe_rig_rented := false   # reset on sleep
+var cafe_hacked := {}          # patron_id -> true; reset on sleep
+var cafe_riot_beaten := false  # permanent — café duel done, R10T fled to the bay
+
+# Drowned Quarter finale: beating the R10T + Deep Marrow gauntlet sets
+# r10t_finale_won (and drops the root key); wiping the Trunk with that key sets
+# game_beaten. Both permanent. See drowned_quarter_3d.
+var r10t_finale_won := false
+var game_beaten := false
 
 # Temporary +max CPU from energy drinks ("wired"). Baked into max_cpu; this
 # tracks how much to peel back off the cap when you sleep.
@@ -251,6 +267,11 @@ func new_game() -> void:
 	exploited = {}
 	botted = {}
 	trash_searched = {}
+	cafe_rig_rented = false
+	cafe_hacked = {}
+	cafe_riot_beaten = false
+	r10t_finale_won = false
+	game_beaten = false
 	wired_cpu = 0
 	fixer_used = false
 	apartment = "apt_4b"
@@ -1996,6 +2017,20 @@ func has_trunk_key() -> bool:
 	return inventory.get(TRUNK_KEY_ITEM, 0) > 0
 
 
+# Drive the R10T Root Key into the breached Trunk — the final act. Consumes the
+# key, flags the game beaten, and persists. Drowned Quarter plays the in-world
+# victory beat around this (see drowned_quarter_3d._play_victory).
+func mark_game_beaten() -> void:
+	if game_beaten:
+		return
+	if inventory.get(TRUNK_KEY_ITEM, 0) > 0:
+		consume_item(TRUNK_KEY_ITEM)
+	game_beaten = true
+	save_game()
+	stats_changed.emit()
+	quest_changed.emit()
+
+
 func trunk_ready() -> bool:
 	return final_contract_complete() and has_trunk_key()
 
@@ -2008,11 +2043,17 @@ func final_contract_hint() -> String:
 	if not final_contract_complete():
 		return "Complete the Darknet contract '%s' by pwning %s before jacking in." % [c.name, c.target]
 	if not has_trunk_key():
-		return "Beat Riot/R10T and take the R10T Root Key before jacking in."
+		return "Beat R10T and take the R10T Root Key before jacking in."
 	return "The final contract is done and the R10T Root Key is in your bag."
 
 
 func trunk_prompt() -> String:
+	if game_beaten:
+		return "The Trunk is wiped"
+	if r10t_finale_won:
+		return "Jack into the trunk"   # R10T down, key in hand — finish it
+	if cafe_riot_beaten:
+		return "R10T guards the trunk"  # the rematch waits on the walkway
 	if trunk_ready():
 		return "Jack into the trunk"
 	var id := final_contract_id()
@@ -2142,6 +2183,8 @@ func sleep() -> void:
 	heat = maxi(0, heat - cooled)
 	exploited.clear()
 	trash_searched.clear()
+	cafe_rig_rented = false
+	cafe_hacked.clear()
 	wifi_backdoors.clear()
 	favors_done.clear()
 	scrap_bounty_done = false

@@ -1,5 +1,5 @@
 extends "res://scripts/iso/district_3d.gd"
-## The Plaza in 3D — social hub. Job board, the regulars (Pix, Riot, Glitch,
+## The Plaza in 3D — social hub. Job board, the regulars (Pix, R10T, Glitch,
 ## Marlowe, Tess), doors home and to the Market/Underpass, and a tower skyline.
 ## Big City pass: ~10x the old footprint, with billboards, eateries, and the
 ## regulars spread out (the shadier ones tucked toward the back).

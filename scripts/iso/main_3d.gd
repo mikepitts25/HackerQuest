@@ -209,9 +209,9 @@ static func roll_encounter(status_idx: int, heat: int, r10t_beaten: bool, attack
 			var district_req: int = int(GameData.DISTRICTS[district_id].get("status_req", 0))
 			if status_idx >= district_req and rng.randf() < 0.24:
 				return crew_id
-	# R10T: a rare, once-per-game boss once you're a name (Black Hat+).
-	if status_idx >= 3 and not r10t_beaten and rng.randf() < 0.07:
-		return "r10t"
+	# R10T no longer roams as a random street boss — his whole arc is the café
+	# duel (Darknet) → the rematch + Deep Marrow gauntlet (Drowned Quarter), which
+	# is where the R10T Root Key drops now. See darknet_3d / drowned_quarter_3d.
 	var chance := 0.10 + 0.20 * (heat / 100.0)  # heat makes the street meaner
 	if rng.randf() > chance:
 		return ""

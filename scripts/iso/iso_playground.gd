@@ -9,7 +9,7 @@ const InteractableScript := preload("res://scripts/iso/interactable_3d.gd")
 
 const TALK_LINES := {
 	"Pix": "Pix: \"Saw a fat contract drop on the board. You didn't hear it from me.\"",
-	"Riot": "Riot: \"Keep your heat down. The sweeps got upgraded last patch.\"",
+	"R10T": "R10T: \"Keep your heat down. The sweeps got upgraded last patch.\"",
 	"Glitch": "Glitch: \"I can route around anything except rent.\"",
 	"Marlowe": "Marlowe: \"Word is Corp Row's hiring... if your status checks out.\"",
 	"Vex": "Vex: \"Buying? Selling? Either way, it never happened.\"",

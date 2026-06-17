@@ -80,7 +80,7 @@ func _play_open_animation() -> void:
 func _start_combat_audio() -> void:
 	_combat_audio = false
 	var track := "battle"
-	if _session.enemy_id == "r10t":
+	if _session.enemy_id in ["r10t", "r10t_final", "trunk"]:
 		track = "riot_boss"
 		Audio.sfx("riot_sting")
 	elif _session.enemy.get("crew", "") == "r10t":
@@ -423,6 +423,15 @@ func _on_jack_out() -> void:
 # After any resolved move, refresh the view and branch on the outcome.
 func _post_move() -> void:
 	_render()
+	# A gauntlet phase may have swapped the enemy mid-fight: refresh the name and
+	# punch in a boss-burst + sting for the new arrival.
+	_enemy_name.text = "▓ %s" % _session.enemy.name
+	if not _session.phase_banner.is_empty():
+		var pb: Dictionary = _session.phase_banner
+		_session.phase_banner = {}
+		if pb.has("sting"):
+			Audio.sfx(pb.sting)
+		_show_boss_burst(pb.get("title", ""), pb.get("subtitle", ""))
 	if _session.outcome == _session.ONGOING:
 		_render_actions("choose")
 	else:
@@ -512,6 +521,14 @@ func _award_loot() -> void:
 		Audio.sfx("riot_down")
 		_session._log("> R10T's avatar detonates into corrupted light.")
 		_show_boss_burst("R10T DOWN", "rival process terminated")
+	elif _session.enemy_id == "r10t_final":
+		Audio.sfx("riot_down")
+		_session._log("> R10T comes apart on the deck. The R10T Root Key clatters loose.")
+		_show_boss_burst("R10T DOWN", "his root key is yours")
+	elif _session.enemy_id == "trunk":
+		Audio.sfx("riot_down")
+		_session._log("> THE TRUNK's core cracks — but it won't die until you wipe it.")
+		_show_boss_burst("TRUNK BREACHED", "drive the key home")
 	elif _session.enemy.get("crew", "") == "r10t":
 		Audio.sfx("crew_down")
 		GameState.mark_crew_boss_defeated(_session.enemy_id)

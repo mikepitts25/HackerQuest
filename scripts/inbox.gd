@@ -29,7 +29,7 @@ static func messages() -> Array:
 	if data > 0:
 		out.append(_m("Vex", "c060c0", "heard you're holding %d packet(s). my stall, today. don't dawdle." % data))
 
-	# Riot taunts up the ladder.
+	# R10T taunts up the ladder.
 	var idx := GameState.status_index()
 	if idx >= 4:
 		out.append(_m("R10T", "ff4f66", "saw '%s' on a job board. cute handle. i got there first 😏" % GameState.handle))

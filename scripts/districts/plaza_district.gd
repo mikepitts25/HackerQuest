@@ -1,5 +1,5 @@
 extends "res://scripts/district.gd"
-## The Plaza — the social hub. Job board, the regulars (Pix, Riot, Glitch,
+## The Plaza — the social hub. Job board, the regulars (Pix, R10T, Glitch,
 ## Marlowe), and doors home and to the Market.
 
 

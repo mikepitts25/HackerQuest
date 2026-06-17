@@ -227,17 +227,17 @@ static func riot_lines() -> Array:
 	var idx := GameState.status_index()
 	if idx <= 1:
 		return [
-			"Riot: \"Cute hoodie. Lemme guess — you 'hacked' your school wifi once?\"",
-			"Riot: \"Come back when your botnet's bigger than your ego, %s.\"" % GameState.status_title(),
+			"R10T: \"Cute hoodie. Lemme guess — you 'hacked' your school wifi once?\"",
+			"R10T: \"Come back when your botnet's bigger than your ego, %s.\"" % GameState.status_title(),
 		]
 	elif idx <= 3:
 		return [
-			"Riot: \"Huh. %s. You're actually moving up. Didn't think you had it.\"" % GameState.status_title(),
-			"Riot: \"Word is the bank core's crackable if your rig's fat enough. I'm not scared. You?\"",
+			"R10T: \"Huh. %s. You're actually moving up. Didn't think you had it.\"" % GameState.status_title(),
+			"R10T: \"Word is the bank core's crackable if your rig's fat enough. I'm not scared. You?\"",
 		]
 	return [
-		"Riot: \"%s. Okay. Okay. You've got the whole grid whispering your handle.\"" % GameState.status_title(),
-		"Riot: \"Whatever. Race you to the AI datacenter. Loser deletes their bots.\"",
+		"R10T: \"%s. Okay. Okay. You've got the whole grid whispering your handle.\"" % GameState.status_title(),
+		"R10T: \"Whatever. Race you to the AI datacenter. Loser deletes their bots.\"",
 	]
 
 
@@ -246,46 +246,46 @@ static func riot_lines_for_district(district: String) -> Array:
 	match district:
 		"plaza":
 			return [
-				"Riot: \"Still taking plaza jobs? Cute. I cleared three before breakfast.\"",
-				"Riot: \"Watch the boards. If a gig says CLAIMED, that was me reminding you who runs first.\"",
-				"Riot: \"Old city myth: there is a Trunk under the bay that learned to hate being discarded.\"",
+				"R10T: \"Still taking plaza jobs? Cute. I cleared three before breakfast.\"",
+				"R10T: \"Watch the boards. If a gig says CLAIMED, that was me reminding you who runs first.\"",
+				"R10T: \"Old city myth: there is a Trunk under the bay that learned to hate being discarded.\"",
 			]
 		"market":
 			return [
-				"Riot: \"Vex likes you? That's adorable. I sold her cleaner packets yesterday.\"",
-				"Riot: \"The Market teaches one thing: every favor has a hook. Mine are just sharper.\"",
-				"Riot: \"R10T buys implant parts here. Not vanity chrome. Spine-interface grade.\"",
+				"R10T: \"Vex likes you? That's adorable. I sold her cleaner packets yesterday.\"",
+				"R10T: \"The Market teaches one thing: every favor has a hook. Mine are just sharper.\"",
+				"R10T: \"I buy my implant parts here. Not vanity chrome. Spine-interface grade.\"",
 			]
 		"underpass":
 			return [
-				"Riot: \"Underpass is where amateurs learn what a tail looks like.\"",
-				"Riot: \"If you hear footsteps after a drop, don't run straight. I used to make that mistake. Once.\"",
-				"Riot: \"The relays down here started answering to R10T before anyone saw a face.\"",
+				"R10T: \"Underpass is where amateurs learn what a tail looks like.\"",
+				"R10T: \"If you hear footsteps after a drop, don't run straight. I used to make that mistake. Once.\"",
+				"R10T: \"The relays down here started answering to me before anyone saw a face.\"",
 			]
 		"corp_row":
 			return [
-				"Riot: \"Corp Row boxes punch back. Finally, something almost as annoying as me.\"",
-				"Riot: \"Bring real defense up here. Your hoodie won't block Black ICE.\"",
-				"Riot: \"A corp memo called the Trunk sentient, then stamped DISCARDED like that solved it.\"",
+				"R10T: \"Corp Row boxes punch back. Finally, something almost as annoying as me.\"",
+				"R10T: \"Bring real defense up here. Your hoodie won't block Black ICE.\"",
+				"R10T: \"A corp memo called the Trunk sentient, then stamped DISCARDED like that solved it.\"",
 			]
 		"darknet":
 			return [
-				"Riot: \"Oracle told you about the machine yet? She tells everyone. Few survive the lesson.\"",
-				"Riot: \"The AI datacenter isn't the door. It's the lock. I have the other half of the key.\"",
-				"Riot: \"R10T's human form is just the implant layer. The final voice is lower.\"",
+				"R10T: \"Oracle told you about the machine yet? She tells everyone. Few survive the lesson.\"",
+				"R10T: \"The AI datacenter isn't the door. It's the lock. I have the other half of the key.\"",
+				"R10T: \"My human form is just the implant layer. The final voice is lower.\"",
 			]
 		"drowned_quarter":
-			var key_line := "Riot: \"Beat R10T and take the root key, or the Trunk won't even hear you knock.\""
+			var key_line := "R10T: \"Take my root key off me if you can, or the Trunk won't even hear you knock.\""
 			if GameState.inventory.get("r10t_root_key", 0) > 0:
-				key_line = "Riot: \"So you took my root key. Good. Now prove you know what it opens.\""
+				key_line = "R10T: \"So you took my root key. Good. Now prove you know what it opens.\""
 			return [
-				"Riot: \"End of the line looks smaller when you're standing in it, huh?\"",
+				"R10T: \"End of the line looks smaller when you're standing in it, huh?\"",
 				key_line,
-				"Riot: \"Past me is the Trunk itself. R10T was only how it learned to stand up.\"",
+				"R10T: \"Past me is the Trunk itself. I was only how it learned to stand up.\"",
 			]
-	var status_line := "Riot: \"You're %s now. Try not to look impressed with yourself.\"" % GameState.status_title()
+	var status_line := "R10T: \"You're %s now. Try not to look impressed with yourself.\"" % GameState.status_title()
 	if idx >= 6:
-		status_line = "Riot: \"Zero Day and still chasing me. Maybe you're learning.\""
+		status_line = "R10T: \"Zero Day and still chasing me. Maybe you're learning.\""
 	return [status_line]
 
 

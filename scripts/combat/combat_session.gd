@@ -41,6 +41,18 @@ var _flee_penalty := 0.0     # trace_lock makes the next JACK OUT harder
 var _flee_bonus := 0.0       # proxy_smoke etc. make the next JACK OUT easier
 var rng := RandomNumberGenerator.new()
 
+# Final-gauntlet phases (enemy carries "gauntlet": true). One continuous fight:
+# phase 0 = R10T; when he hits half integrity Deep Marrow throws himself in
+# (phase 1); once the crew boss drops, R10T resumes at his stashed HP (phase 2)
+# to be finished. enemy_id stays "r10t_final" throughout (loot/audio key off it);
+# only `enemy` swaps. phase_banner lets the UI punch in a boss-burst + sting.
+const GAUNTLET_INTERRUPT_ENEMY := "deep_marrow"
+var _gauntlet := false
+var _gauntlet_phase := 0
+var _r10t_form: Dictionary = {}
+var _r10t_stashed_hp := 0
+var phase_banner: Dictionary = {}
+
 
 func init(player_stats: Dictionary, p_enemy_id: String, seed_val := -1) -> void:
 	enemy_id = p_enemy_id
@@ -55,6 +67,10 @@ func init(player_stats: Dictionary, p_enemy_id: String, seed_val := -1) -> void:
 	player_hp = player_max
 	enemy_max = maxi(1, int(enemy.get("integrity", 10)))
 	enemy_hp = enemy_max
+	if enemy.get("gauntlet", false):
+		_gauntlet = true
+		_gauntlet_phase = 0
+		_r10t_form = enemy  # stashed so we can restore R10T after the interrupt
 	if seed_val >= 0:
 		rng.seed = seed_val
 	else:
@@ -160,11 +176,47 @@ static func available_programs(inventory: Dictionary, botnet_size := 0) -> Array
 # --- enemy turn ---------------------------------------------------------------
 
 func _after_player_action() -> void:
+	# Gauntlet phase swaps fire before any win/death check.
+	if _gauntlet and _gauntlet_phase == 0 and enemy_hp <= int(enemy_max * 0.5):
+		_gauntlet_deep_marrow_in()
+		return
+	if _gauntlet and _gauntlet_phase == 1 and enemy_hp <= 0:
+		_gauntlet_back_to_r10t()
+		return
 	if enemy_hp <= 0:
 		outcome = WIN
 		_log("> %s flatlines. you win." % enemy.name)
 		return
 	_enemy_turn()
+
+
+# Half-health interrupt: Deep Marrow jumps in to shield R10T. R10T's current HP
+# is stashed (clamped so a lethal blow can't kill him before the save), and the
+# crew boss takes the field at full integrity — and opens with a hit.
+func _gauntlet_deep_marrow_in() -> void:
+	_r10t_stashed_hp = maxi(1, enemy_hp)
+	_gauntlet_phase = 1
+	var dm: Dictionary = GameData.ENEMIES[GAUNTLET_INTERRUPT_ENEMY].duplicate(true)
+	enemy = dm
+	enemy_max = maxi(1, int(dm.get("integrity", 100)))
+	enemy_hp = enemy_max
+	_enemy_guard = false
+	phase_banner = {"title": "DEEP MARROW", "subtitle": "throws himself in front of R10T", "sting": "crew_sting"}
+	_log("> Deep Marrow slams in, body between you and R10T. \"You don't get to touch him.\"")
+	_enemy_turn()
+
+
+# Crew boss down: R10T resumes at his stashed (low) HP with nothing left to hide
+# behind. Player keeps the initiative — no free swing for R10T on the swap.
+func _gauntlet_back_to_r10t() -> void:
+	_log("> Deep Marrow flatlines. \"...boss... I'm sorry...\"")
+	_gauntlet_phase = 2
+	enemy = _r10t_form
+	enemy_max = maxi(1, int(_r10t_form.get("integrity", 100)))
+	enemy_hp = _r10t_stashed_hp
+	_enemy_guard = false
+	phase_banner = {"title": "R10T", "subtitle": "no one left to hide behind", "sting": "riot_sting"}
+	_log("> R10T stands alone again, bleeding light. \"...fine. FINE. Just us.\"")
 
 
 func _enemy_turn() -> void:
