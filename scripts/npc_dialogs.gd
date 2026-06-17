@@ -153,6 +153,7 @@ static func cipher_lines() -> Array:
 		"Cipher: \"Corp Row. Took you long enough, %s.\"" % GameState.status_title(),
 		"Cipher: \"The datacenters here run hot and careless. Sniff the air — the WiFi's dense.\"",
 		"Cipher: \"Bring a real rig. The boxes up here don't fall to a toy.\"",
+		"Cipher: \"Old procurement logs say a sentient trunk core was discarded under the bay, then someone re-keyed it as R10T.\"",
 	]
 
 
@@ -161,6 +162,7 @@ static func oracle_lines() -> Array:
 		"Oracle: \"Few make it to the café. Fewer leave the same.\"",
 		"Oracle: \"You've got the whole grid in your pocket and you still want more. Good.\"",
 		"Oracle: \"The AI datacenter is awake. When you take it, the city will remember your name.\"",
+		"Oracle: \"R10T is not a rival. R10T is the Trunk's human form after a wetware implant learned to walk.\"",
 	]
 
 
@@ -169,12 +171,13 @@ static func oracle_lines() -> Array:
 static func fathom_lines() -> Array:
 	if GameState.trunk_ready():
 		return [
-			"Fathom: \"You hear it too, don't you. The Trunk's been waiting for a hand like yours.\"",
-			"Fathom: \"Everything you need, you're carrying. Walk the spine and knock. It'll answer.\"",
+			"Fathom: \"You hear it too, don't you. The discarded Trunk has its strength back.\"",
+			"Fathom: \"R10T was the mask. Jack in and you fight the thing wearing the whole grid.\"",
 		]
 	return [
 		"Fathom: \"Careful on the walkway. The water down here remembers everyone who slipped.\"",
 		"Fathom: \"I dive the dead fiber for a living. Every packet in the bay still runs through the Trunk.\"",
+		"Fathom: \"They drowned it when it became sentient. R10T found it. Or maybe it found R10T.\"",
 		"Fathom: \"%s\"" % GameState.final_contract_hint(),
 	]
 
@@ -207,10 +210,12 @@ static func pix_lines() -> Array:
 			"Pix: \"Got a rig? Sit at your desk and run scan, inspect, then exploit.\"",
 			"Pix: \"After you pwn a box, install_bot on it. Bots pay you while you sleep.\"",
 			"Pix: \"Watch your HEAT. Hit 100 and you get traced. Sleeping cools you off.\"",
+			"Pix: \"If a street kid says R10T, ask whether they mean the hacker or the thing wearing him.\"",
 		]
 	return [
 		"Pix: \"REP builds your STATUS — and status opens doors.\"",
 		"Pix: \"You're a %s now. Bigger rigs crack bigger targets; talk to the others around here.\"" % GameState.status_title(),
+		"Pix: \"People say the Trunk was discarded because it became sentient. People say a lot. This one scares me.\"",
 	]
 
 
@@ -243,26 +248,31 @@ static func riot_lines_for_district(district: String) -> Array:
 			return [
 				"Riot: \"Still taking plaza jobs? Cute. I cleared three before breakfast.\"",
 				"Riot: \"Watch the boards. If a gig says CLAIMED, that was me reminding you who runs first.\"",
+				"Riot: \"Old city myth: there is a Trunk under the bay that learned to hate being discarded.\"",
 			]
 		"market":
 			return [
 				"Riot: \"Vex likes you? That's adorable. I sold her cleaner packets yesterday.\"",
 				"Riot: \"The Market teaches one thing: every favor has a hook. Mine are just sharper.\"",
+				"Riot: \"R10T buys implant parts here. Not vanity chrome. Spine-interface grade.\"",
 			]
 		"underpass":
 			return [
 				"Riot: \"Underpass is where amateurs learn what a tail looks like.\"",
 				"Riot: \"If you hear footsteps after a drop, don't run straight. I used to make that mistake. Once.\"",
+				"Riot: \"The relays down here started answering to R10T before anyone saw a face.\"",
 			]
 		"corp_row":
 			return [
 				"Riot: \"Corp Row boxes punch back. Finally, something almost as annoying as me.\"",
 				"Riot: \"Bring real defense up here. Your hoodie won't block Black ICE.\"",
+				"Riot: \"A corp memo called the Trunk sentient, then stamped DISCARDED like that solved it.\"",
 			]
 		"darknet":
 			return [
 				"Riot: \"Oracle told you about the machine yet? She tells everyone. Few survive the lesson.\"",
 				"Riot: \"The AI datacenter isn't the door. It's the lock. I have the other half of the key.\"",
+				"Riot: \"R10T's human form is just the implant layer. The final voice is lower.\"",
 			]
 		"drowned_quarter":
 			var key_line := "Riot: \"Beat R10T and take the root key, or the Trunk won't even hear you knock.\""
@@ -271,6 +281,7 @@ static func riot_lines_for_district(district: String) -> Array:
 			return [
 				"Riot: \"End of the line looks smaller when you're standing in it, huh?\"",
 				key_line,
+				"Riot: \"Past me is the Trunk itself. R10T was only how it learned to stand up.\"",
 			]
 	var status_line := "Riot: \"You're %s now. Try not to look impressed with yourself.\"" % GameState.status_title()
 	if idx >= 6:
@@ -286,6 +297,7 @@ static func glitch_lines() -> Array:
 		"Glitch: \"Energy drinks before a long session. Tired hands trip alarms.\"",
 		"Glitch: \"Vex down the alley pays more for data than the pawn shop ever will.\"",
 		"Glitch: \"Marlowe can make your heat disappear. Once a day. For a price.\"",
+		"Glitch: \"R10T pings like a person and routes like a trunk line. That is not normal.\"",
 	]
 	return [
 		"Glitch: \"Don't say my name out loud. What do you want.\"",
@@ -299,10 +311,12 @@ static func vex_lines() -> Array:
 		return [
 			"Vex: \"You bring me Stolen Data, I make it rain. Today? You got nothing.\"",
 			"Vex: \"Pwn a box, exfiltrate the goods, come back. I pay $%d a packet.\"" % GameState.FENCE_PRICE,
+			"Vex: \"I fenced implant schematics once. Buyer signed R10T. Delivery address was below sea level.\"",
 		]
 	return [
 		"Vex: \"Fresh records. I can move those.\"",
 		"Vex: \"%d packet(s) for $%d. Say yes and they're gone.\"" % [result.count, result.total],
+		"Vex: \"Careful with R10T files. Some of them breathe back.\"",
 	]
 
 
@@ -322,6 +336,7 @@ static func marlowe_lines() -> Array:
 		return [
 			"Marlowe: \"I can cross a name off a list.\"",
 			"Marlowe: \"Heat %d to %d for $%d. Say yes and we never spoke.\"" % [result.before, result.after, result.cost],
+			"Marlowe: \"R10T's records never stay crossed off. Like the grid keeps writing the body back in.\"",
 		]
 	match result.reason:
 		"trace":

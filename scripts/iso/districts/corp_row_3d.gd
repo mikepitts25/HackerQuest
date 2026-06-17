@@ -62,6 +62,19 @@ func _build() -> void:
 	_bench(Vector2(24, 30), 0)
 	_bench(Vector2(42, 30), 180)
 
+	# A polished corporate monument fronting the lobby — the row's landmark.
+	_statue(Vector2(10, 10), "AXIOM\nPLAZA", Color(0.3, 0.8, 1.0))
+
+	# Manicured trees lining the corporate plaza.
+	for p in [Vector2(38, 24), Vector2(50, 26), Vector2(20, 38), Vector2(48, 40),
+			Vector2(8, 40), Vector2(16, 38)]:
+		_tree(p, randf_range(0.95, 1.15))
+
+	# Surveillance drones drifting the row, and a stray cat slumming the back lane.
+	_stray(Vector2(28, 26), "bird", 9.0)
+	_stray(Vector2(44, 22), "bird", 8.0)
+	_stray(Vector2(14, 38), "cat", 6.0)
+
 	_exit("Market", Vector2(1, 24), "market", "from_corp", 90)
 	_exit("Darknet Cafe", Vector2(63, 24), "darknet", "from_corp", 90)
 	_spawn_wanderers("corp_row")

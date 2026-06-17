@@ -25,7 +25,7 @@ func _build() -> void:
 				if not GameState.trunk_ready():
 					GameState.notify(GameState.final_contract_hint(), GameState.COL_WARN)
 				else:
-					GameState.notify("THE TRUNK recognizes the final contract. The city waits for the next move.", GameState.COL_INFO))
+					GameState.notify("THE TRUNK drops the R10T mask. The final boss is awake below the bay.", GameState.COL_BAD))
 
 	_exit("Darknet Cafe", Vector2(940, 360), Vector2(46, 110), "darknet", "from_drowned")
 

@@ -4,10 +4,11 @@
       "type": "stdio",
       "command": "node",
       "args": [
-        "/Users/mike/AppIdeas/HackerQuest/server/build/index.js"
+        "/Users/mike/AppIdeas/godot-mcp-pro-server/build/index.js"
       ],
       "env": {
-        "GODOT_MCP_PORT": "6505"
+        "GODOT_MCP_PORT": "6505",
+        "GODOT_MCP_PROJECT_PATH": "/Users/mike/AppIdeas/HackerQuest"
       }
     }
   }

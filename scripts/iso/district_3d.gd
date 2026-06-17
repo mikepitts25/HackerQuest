@@ -15,6 +15,7 @@ const PX := 1.0 / 80.0  # meters per legacy 2D pixel
 const InteractableScript := preload("res://scripts/iso/interactable_3d.gd")
 const WandererScript := preload("res://scripts/iso/wanderer_3d.gd")
 const VehicleScript := preload("res://scripts/iso/vehicle_3d.gd")
+const CritterScript := preload("res://scripts/iso/critter_3d.gd")
 
 const CHAR_SCENES := {
 	"pix": "res://assets/iso/characters/char_pix.tscn",
@@ -309,9 +310,12 @@ func _spawn_npcs(district_id: String) -> void:
 		# their home-local pixel coords (which could land inside a wall).
 		var home: bool = npc.get("district", "") == district_id
 		var pos: Vector2
-		if home:
-			# Subclass override wins (enlarged-map placement); else legacy coords.
-			pos = _npc_overrides.get(npc_id, Vector2(npc.pos[0] * PX, npc.pos[1] * PX))
+		if _npc_overrides.has(npc_id):
+			# Subclass override wins for both home and visiting NPCs; enlarged
+			# maps sometimes have hazards near the default visitor loiter point.
+			pos = _npc_overrides[npc_id]
+		elif home:
+			pos = Vector2(npc.pos[0] * PX, npc.pos[1] * PX)
 		else:
 			pos = Vector2(area_size.x * 0.4 + visitors * 2.0, area_size.y * 0.28)
 			visitors += 1
@@ -1030,6 +1034,110 @@ func _planter(pos: Vector2) -> void:
 	add_child(foliage)
 
 
+# A stylized tree: a trunk and a few stacked canopy tufts, with per-call color
+# and rotation jitter so a row of them doesn't look stamped. A slim trunk
+# collider keeps you from walking through it. `scale` sizes the whole tree.
+func _tree(pos: Vector2, scale := 1.0) -> void:
+	var holder := Node3D.new()
+	holder.position = Vector3(pos.x, 0, pos.y)
+	holder.rotation.y = randf() * TAU
+	add_child(holder)
+	var trunk := MeshInstance3D.new()
+	var tm := BoxMesh.new()
+	tm.size = Vector3(0.22 * scale, 1.2 * scale, 0.22 * scale)
+	var tmat := StandardMaterial3D.new()
+	tmat.albedo_color = Color(0.18, 0.13, 0.1)
+	tmat.roughness = 1.0
+	tm.material = tmat
+	trunk.mesh = tm
+	trunk.position.y = 0.6 * scale
+	holder.add_child(trunk)
+	var leaf := Color(0.14, 0.34, 0.2).lerp(Color(0.1, 0.42, 0.32), randf())
+	# Three tapering canopy tiers stacked up the trunk.
+	for tier in [{"w": 1.5, "y": 1.5}, {"w": 1.2, "y": 2.05}, {"w": 0.8, "y": 2.5}]:
+		var c := MeshInstance3D.new()
+		var cm := BoxMesh.new()
+		var w: float = tier.w * scale
+		cm.size = Vector3(w, 0.7 * scale, w)
+		var cmat := StandardMaterial3D.new()
+		cmat.albedo_color = leaf.darkened(randf_range(0.0, 0.14))
+		cmat.roughness = 0.95
+		cm.material = cmat
+		c.mesh = cm
+		c.position.y = tier.y * scale
+		c.rotation.y = randf() * 0.7
+		holder.add_child(c)
+	_collider(pos, Vector3(0.3 * scale, 1.2 * scale, 0.3 * scale))
+
+
+# A civic landmark: a stone pedestal topped with an abstract chrome figure, lit
+# from below. Pure decor with a plaque; `accent` tints the uplight. One per
+# district at most (each adds a real light).
+func _statue(pos: Vector2, plaque: String, accent := Color(0.6, 0.85, 1.0), yaw_deg := 0.0) -> void:
+	var holder := Node3D.new()
+	holder.position = Vector3(pos.x, 0, pos.y)
+	holder.rotation.y = deg_to_rad(yaw_deg)
+	add_child(holder)
+	var ped := MeshInstance3D.new()
+	var pm := BoxMesh.new()
+	pm.size = Vector3(1.6, 0.8, 1.6)
+	var pmat := StandardMaterial3D.new()
+	pmat.albedo_color = Color(0.14, 0.15, 0.18)
+	pmat.roughness = 0.9
+	pm.material = pmat
+	ped.mesh = pm
+	ped.position.y = 0.4
+	holder.add_child(ped)
+	# Chrome figure: torso, head, and a raised arm.
+	var fmat := StandardMaterial3D.new()
+	fmat.albedo_color = Color(0.45, 0.48, 0.55)
+	fmat.metallic = 0.8
+	fmat.roughness = 0.25
+	var torso := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.55, 1.3, 0.4)
+	bm.material = fmat
+	torso.mesh = bm
+	torso.position.y = 1.45
+	holder.add_child(torso)
+	var head := MeshInstance3D.new()
+	var hm := BoxMesh.new()
+	hm.size = Vector3(0.32, 0.32, 0.32)
+	hm.material = fmat
+	head.mesh = hm
+	head.position.y = 2.25
+	holder.add_child(head)
+	var arm := MeshInstance3D.new()
+	var am := BoxMesh.new()
+	am.size = Vector3(0.18, 0.9, 0.18)
+	am.material = fmat
+	arm.mesh = am
+	arm.position = Vector3(0.32, 2.05, 0)
+	arm.rotation.z = deg_to_rad(-35)
+	holder.add_child(arm)
+	var light := OmniLight3D.new()
+	light.light_color = accent
+	light.light_energy = 1.6
+	light.omni_range = 5.0
+	light.position = Vector3(0, 0.9, 0.9)
+	holder.add_child(light)
+	_collider(pos, Vector3(1.6, 2.4, 1.6))
+	_sign(plaque, pos, 3.0, 28)
+
+
+# A small ambient animal roaming a patch around pos: a stray "cat" or a little
+# hover-drone "bird". Harmless flavor life (see critter_3d.gd).
+func _stray(pos: Vector2, kind := "cat", roam := 4.0) -> void:
+	var c := Node3D.new()
+	c.set_script(CritterScript)
+	c.kind = kind
+	c.area_center = Vector3(pos.x, 0, pos.y)
+	c.area_size = Vector2(roam, roam)
+	c.speed = randf_range(0.8, 1.4) if kind == "cat" else randf_range(1.2, 2.0)
+	c.position = Vector3(pos.x, 0, pos.y)
+	add_child(c)
+
+
 # A street lamp: slim post with an emissive head and a soft pool of light. Use
 # sparingly (each adds a real light) to dot the larger streets at night.
 func _streetlamp(pos: Vector2, color := Color(1.0, 0.85, 0.6)) -> void:
@@ -1077,6 +1185,170 @@ func _bench(pos: Vector2, yaw_deg := 0.0) -> void:
 	seat.mesh = sm
 	seat.position.y = 0.42
 	holder.add_child(seat)
+
+
+# An internet-café booth — the thing that makes a net-café read as one: a dark
+# desk with a glowing monitor, a chair, a privacy divider, and (optionally) a
+# hunched patron lit only by the screen. The monitor's emissive glow is the
+# booth's light; `glow` tints the screen, `occupied` seats a silhouette, `lit`
+# adds a real (perf-costed) monitor light, `tag` stamps a small station number.
+# Booth faces -z (screen at the back, patron on the +z side); `yaw_deg` aims it.
+func _workstation(pos: Vector2, yaw_deg := 0.0, glow := Color(0.3, 0.9, 0.8), occupied := false, lit := false, tag := "") -> void:
+	var holder := Node3D.new()
+	holder.position = Vector3(pos.x, 0, pos.y)
+	holder.rotation.y = deg_to_rad(yaw_deg)
+	add_child(holder)
+	# Desk pedestal + top.
+	var ped := _box(Vector3(1.0, 0.7, 0.5), Color(0.07, 0.07, 0.09))
+	ped.position = Vector3(0, 0.35, -0.05)
+	holder.add_child(ped)
+	var desk := _box(Vector3(1.12, 0.08, 0.62), Color(0.1, 0.1, 0.13))
+	desk.position = Vector3(0, 0.72, 0)
+	holder.add_child(desk)
+	# Monitor on a slim stand at the back, glowing.
+	var stand := _box(Vector3(0.08, 0.3, 0.08), Color(0.06, 0.06, 0.08))
+	stand.position = Vector3(0, 0.87, -0.24)
+	holder.add_child(stand)
+	var screen := MeshInstance3D.new()
+	var sm := BoxMesh.new()
+	sm.size = Vector3(0.72, 0.46, 0.05)
+	var smat := StandardMaterial3D.new()
+	smat.albedo_color = glow.darkened(0.35)
+	smat.emission_enabled = true
+	smat.emission = glow
+	smat.emission_energy_multiplier = 1.7
+	sm.material = smat
+	screen.mesh = sm
+	screen.position = Vector3(0, 1.14, -0.24)
+	holder.add_child(screen)
+	# A keyboard slab catching the screen glow.
+	var kb := _box(Vector3(0.5, 0.04, 0.18), glow.darkened(0.65))
+	kb.position = Vector3(0, 0.78, 0.08)
+	holder.add_child(kb)
+	# Privacy divider down the left side (cubicle feel).
+	var div := _box(Vector3(0.05, 1.0, 0.74), Color(0.085, 0.095, 0.115))
+	div.position = Vector3(-0.6, 0.6, -0.06)
+	holder.add_child(div)
+	# Chair: seat + low back, on the patron side.
+	var seat := _box(Vector3(0.46, 0.08, 0.46), Color(0.1, 0.1, 0.12))
+	seat.position = Vector3(0, 0.46, 0.42)
+	holder.add_child(seat)
+	var chair_back := _box(Vector3(0.46, 0.5, 0.08), Color(0.1, 0.1, 0.12))
+	chair_back.position = Vector3(0, 0.72, 0.62)
+	holder.add_child(chair_back)
+	if occupied:
+		# A hunched patron lit by the screen — torso, head (faintly screen-glowed),
+		# and a hood, leaning into the monitor.
+		var torso := _box(Vector3(0.42, 0.6, 0.34), Color(0.11, 0.11, 0.15))
+		torso.position = Vector3(0, 1.0, 0.34)
+		torso.rotation.x = -0.22
+		holder.add_child(torso)
+		var head := MeshInstance3D.new()
+		var hm := BoxMesh.new()
+		hm.size = Vector3(0.24, 0.26, 0.24)
+		var hmat := StandardMaterial3D.new()
+		hmat.albedo_color = Color(0.5, 0.42, 0.36)
+		hmat.emission_enabled = true        # screen light catching the face
+		hmat.emission = glow
+		hmat.emission_energy_multiplier = 0.18
+		hm.material = hmat
+		head.mesh = hm
+		head.position = Vector3(0, 1.42, 0.26)
+		holder.add_child(head)
+		var hood := _box(Vector3(0.3, 0.2, 0.32), Color(0.09, 0.09, 0.12))
+		hood.position = Vector3(0, 1.5, 0.36)
+		holder.add_child(hood)
+	if lit:
+		var light := OmniLight3D.new()
+		light.light_color = glow
+		light.light_energy = 0.7
+		light.omni_range = 2.4
+		light.position = Vector3(0, 1.1, 0.05)
+		holder.add_child(light)
+	if tag != "":
+		var lbl := Label3D.new()
+		lbl.text = tag
+		lbl.font_size = 22
+		lbl.pixel_size = 0.01
+		lbl.modulate = Color(glow.r, glow.g, glow.b, 0.7)
+		lbl.outline_size = 6
+		lbl.position = Vector3(-0.6, 1.2, -0.06)
+		lbl.rotation.y = deg_to_rad(90)
+		holder.add_child(lbl)
+	_collider(pos, Vector3(0.95, 1.2, 0.95))
+
+
+# A glowing drinks cooler / vending machine — a tall dark cabinet with a bright
+# emissive front, a faint spill of light, and a label. Quiet ambient decor (with
+# a small collider) that makes a café floor feel stocked and lived-in.
+func _vending_machine(pos: Vector2, yaw_deg := 0.0, color := Color(0.3, 0.85, 1.0), label := "") -> void:
+	var holder := Node3D.new()
+	holder.position = Vector3(pos.x, 0, pos.y)
+	holder.rotation.y = deg_to_rad(yaw_deg)
+	add_child(holder)
+	var body := _box(Vector3(0.9, 1.8, 0.6), Color(0.09, 0.1, 0.13))
+	body.position = Vector3(0, 0.9, 0)
+	holder.add_child(body)
+	var face := MeshInstance3D.new()
+	var fm := BoxMesh.new()
+	fm.size = Vector3(0.7, 1.45, 0.06)
+	var fmat := StandardMaterial3D.new()
+	fmat.albedo_color = color.darkened(0.3)
+	fmat.emission_enabled = true
+	fmat.emission = color
+	fmat.emission_energy_multiplier = 1.1
+	fm.material = fmat
+	face.mesh = fm
+	face.position = Vector3(0, 0.98, 0.31)
+	holder.add_child(face)
+	var light := OmniLight3D.new()
+	light.light_color = color
+	light.light_energy = 0.7
+	light.omni_range = 2.8
+	light.position = Vector3(0, 1.2, 0.6)
+	holder.add_child(light)
+	if label != "":
+		_sign(label, pos, 2.1, 26)
+	_collider(pos, Vector3(0.9, 1.8, 0.6))
+
+
+# A messy run of floor cabling — a dark conduit with a faint emissive data seam.
+# Snakes between rigs and booths so the floor reads as wired, not bare. `yaw_deg`
+# orients the run (0 = along x), `length` in meters.
+func _cable_run(pos: Vector2, length := 4.0, yaw_deg := 0.0, color := Color(0.2, 0.9, 0.7)) -> void:
+	var holder := Node3D.new()
+	holder.position = Vector3(pos.x, 0, pos.y)
+	holder.rotation.y = deg_to_rad(yaw_deg)
+	add_child(holder)
+	var tray := _box(Vector3(length, 0.06, 0.2), Color(0.06, 0.065, 0.085))
+	tray.position.y = 0.03
+	holder.add_child(tray)
+	var seam := MeshInstance3D.new()
+	var sm := BoxMesh.new()
+	sm.size = Vector3(length, 0.02, 0.05)
+	var smat := StandardMaterial3D.new()
+	smat.albedo_color = color.darkened(0.4)
+	smat.emission_enabled = true
+	smat.emission = color
+	smat.emission_energy_multiplier = 0.7
+	sm.material = smat
+	seam.mesh = sm
+	seam.position.y = 0.07
+	holder.add_child(seam)
+
+
+# Small helper: an unshaded colored box MeshInstance3D (no collider). Keeps the
+# decor builders above terse.
+func _box(size: Vector3, color: Color, roughness := 0.85) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = roughness
+	bm.material = mat
+	m.mesh = bm
+	return m
 
 
 # Is the city in its late-night phase? The "clock" is energy: fresh after

@@ -11,6 +11,7 @@ class FakeMain:
 	var current_district_id := "drowned_quarter"
 	var forced_street_enemy := ""
 	var street_combat_started := ""
+	var combat_started := ""
 	func go_to(_district_id: String, _spawn_id: String) -> void:
 		pass
 	func talk_wanderer(_npc_name: String) -> void:
@@ -21,6 +22,8 @@ class FakeMain:
 		pass
 	func roll_street_encounter(_district_id: String) -> String:
 		return forced_street_enemy
+	func start_combat(enemy_id: String) -> void:
+		combat_started = enemy_id
 	func start_street_combat(enemy_id: String) -> void:
 		street_combat_started = enemy_id
 
@@ -167,6 +170,83 @@ func _has_label3d_text(node: Node, text: String) -> bool:
 		if _has_label3d_text(child, text):
 			return true
 	return false
+
+
+func _large_water_slabs_are_below_ground(node: Node, max_top_y := -0.02) -> bool:
+	var status := _water_slab_status(node, max_top_y)
+	return bool(status[0]) and bool(status[1])
+
+
+func _water_slab_status(node: Node, max_top_y: float) -> Array:
+	var found_water := false
+	var valid_water := true
+	for child in node.get_children():
+		if child is MeshInstance3D and (child as MeshInstance3D).mesh is BoxMesh:
+			var mesh := (child as MeshInstance3D).mesh as BoxMesh
+			var mat := mesh.material as StandardMaterial3D
+			if mat != null and mat.emission_enabled and mesh.size.y <= 0.08 and mesh.size.x >= 10.0 and mesh.size.z >= 8.0:
+				found_water = true
+				if (child as MeshInstance3D).global_position.y + mesh.size.y / 2.0 > max_top_y:
+					valid_water = false
+		var child_status := _water_slab_status(child, max_top_y)
+		found_water = found_water or bool(child_status[0])
+		valid_water = valid_water and bool(child_status[1])
+	return [found_water, valid_water]
+
+
+func _has_overhead_full_width_slab(node: Node, district_width: float) -> bool:
+	for child in node.get_children():
+		if child is MeshInstance3D and (child as MeshInstance3D).mesh is BoxMesh:
+			var mesh := (child as MeshInstance3D).mesh as BoxMesh
+			var global_y := (child as MeshInstance3D).global_position.y
+			if mesh.size.x >= district_width - 0.5 and mesh.size.y <= 0.5 and mesh.size.z <= 2.0 and global_y > 1.0:
+				return true
+		if _has_overhead_full_width_slab(child, district_width):
+				return true
+	return false
+
+
+func _count_critter_kind(node: Node, kind: String) -> int:
+	var count := 0
+	var script: Variant = node.get_script()
+	if script is Script and script.resource_path == "res://scripts/iso/critter_3d.gd" and str(node.get("kind")) == kind:
+		count += 1
+	for child in node.get_children():
+		count += _count_critter_kind(child, kind)
+	return count
+
+
+func _drowned_water_rects() -> Array[Rect2]:
+	return [
+		Rect2(3, 3, 14, 9),
+		Rect2(22, 3, 15, 9),
+		Rect2(3, 21, 14, 8),
+		Rect2(22, 21, 15, 8),
+	]
+
+
+func _point_in_drowned_water(pos: Vector3) -> bool:
+	var p := Vector2(pos.x, pos.z)
+	for rect in _drowned_water_rects():
+		if rect.has_point(p):
+			return true
+	return false
+
+
+func _has_character_in_drowned_water(node: Node) -> bool:
+	if node is Node3D and str(node.name).begins_with("Char") and _point_in_drowned_water((node as Node3D).global_position):
+		return true
+	for child in node.get_children():
+		if _has_character_in_drowned_water(child):
+			return true
+	return false
+
+
+func _lines_blob(lines: Array) -> String:
+	var out := ""
+	for line in lines:
+		out += str(line) + "\n"
+	return out
 
 
 func _first_in_group_under(node: Node, group_name: String) -> Node:
@@ -590,6 +670,16 @@ func _ready() -> void:
 		var crew_loot: Dictionary = GameData.ENEMIES[crew_id].get("loot", {})
 		_check(crew_loot.has("gear") and GameData.GEAR.has(crew_loot.gear), "mini-boss drops notable gear in %s" % district_id)
 		_check(GameData.GEAR[crew_loot.gear].get("crew_drop", false), "mini-boss gear is marked as crew-drop progression gear")
+		var district_clues := _lines_blob(NpcDialogs.riot_lines_for_district(district_id)).to_lower()
+		_check(district_clues.contains("trunk") or district_clues.contains("r10t") or district_clues.contains("implant")
+				or district_clues.contains("sentient") or district_clues.contains("discard"),
+				"Riot seeds Trunk/R10T lore in %s" % district_id)
+	var trunk_lore := _lines_blob(NpcDialogs.pix_lines() + NpcDialogs.glitch_lines() + NpcDialogs.vex_lines()
+			+ NpcDialogs.cipher_lines() + NpcDialogs.oracle_lines() + NpcDialogs.fathom_lines()).to_lower()
+	_check(trunk_lore.contains("sentient"), "NPC lore establishes the Trunk became sentient")
+	_check(trunk_lore.contains("discard"), "NPC lore establishes the Trunk was discarded")
+	_check(trunk_lore.contains("implant"), "NPC lore establishes R10T's implanted human form")
+	_check(trunk_lore.contains("human form"), "NPC lore names R10T as the Trunk's human form")
 	_check(GameData.TARGETS["corp_mail_relay"].get("district_tier", 0) >= 4, "corp mail relay carries a district tier")
 	_check(GameData.TARGETS["corp_mail_relay"].get("required_gear", "") == "rig_tunnel_splice",
 			"corp row hacking expects the previous district boss rig")
@@ -752,6 +842,10 @@ func _ready() -> void:
 	GameState.add_item("r10t_root_key")
 	_check(GameState.trunk_ready(), "R10T key plus final contract unlocks the trunk")
 	_check(GameState.trunk_prompt() == "Jack into the trunk", "ready trunk uses jack-in prompt")
+	_check(GameData.ENEMIES.has("trunk"), "the Trunk is defined as the final boss")
+	var trunk_enemy: Dictionary = GameData.ENEMIES.get("trunk", {})
+	_check(str(trunk_enemy.get("intro", "")).to_lower().contains("final boss"), "Trunk boss intro names the final boss")
+	_check(str(trunk_enemy.get("intro", "")).to_lower().contains("r10t"), "Trunk boss intro ties R10T to the reveal")
 
 	# --- corp jobs are a separate board ---
 	var corp_count := 0
@@ -1064,12 +1158,25 @@ func _ready() -> void:
 	_check(not GameState.buy_furniture("arcade_cab"), "high-status furniture is gated")
 
 	# --- endgame district ambience ---
+	GameState.day = 5  # Riot's schedule puts him in Drowned Quarter today.
+	GameState.heat = 0
+	GameState.trace_active = false
 	var drowned: Node3D = load("res://scenes/iso/districts/drowned_quarter_3d.tscn").instantiate()
 	add_child(drowned)
-	drowned.build(FakeMain.new())
+	var drowned_main := FakeMain.new()
+	drowned.build(drowned_main)
 	await get_tree().process_frame
 	_check(_count_nodes_with_script(drowned, "res://scripts/iso/wanderer_3d.gd") == 0,
 			"drowned quarter does not spawn wandering NPCs")
+	_check(_large_water_slabs_are_below_ground(drowned), "drowned quarter water stays below the ground plane")
+	_check(not _has_overhead_full_width_slab(drowned, 40.0), "drowned quarter has no full-width overhead ceiling bar")
+	_check(not _has_character_in_drowned_water(drowned), "drowned quarter NPCs stay out of water")
+	_check(_count_critter_kind(drowned, "rat") >= 4, "drowned quarter has rats on the dry walkways")
+	GameState.completed_contracts = [GameState.final_contract_id()]
+	GameState.inventory.erase("r10t_root_key")
+	GameState.add_item("r10t_root_key")
+	drowned.call("_on_trunk")
+	_check(drowned_main.combat_started == "trunk", "ready Trunk interaction starts the Trunk final boss fight")
 	remove_child(drowned)
 	drowned.queue_free()
 	GameState.reputation = 999

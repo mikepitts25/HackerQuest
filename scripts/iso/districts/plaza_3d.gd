@@ -60,6 +60,20 @@ func _build() -> void:
 	_bench(Vector2(44, 24), 180)
 	_bench(Vector2(38, 16), 90)
 
+	# A civic statue anchors the centre of the square — the plaza's landmark.
+	_statue(Vector2(35, 24), "FOUNDERS\nOF THE GRID", Color(0.5, 0.85, 1.0))
+
+	# A little park of trees scattered through the open paving and along the
+	# promenade, softening the bare square.
+	for p in [Vector2(46, 16), Vector2(52, 32), Vector2(22, 32), Vector2(14, 38),
+			Vector2(60, 40), Vector2(40, 34), Vector2(30, 38), Vector2(58, 12)]:
+		_tree(p, randf_range(0.9, 1.2))
+
+	# Strays loitering the square — a couple of cats and a hover-drone overhead.
+	_stray(Vector2(28, 26), "cat", 6.0)
+	_stray(Vector2(42, 20), "cat", 6.0)
+	_stray(Vector2(35, 28), "bird", 8.0)
+
 	_exit("Home", Vector2(18, 46.5), "home", "from_plaza")
 	_exit("Market", Vector2(69, 24), "market", "from_plaza", 90)
 	_exit("Underpass", Vector2(1, 24), "underpass", "from_plaza", 90)
@@ -73,6 +87,7 @@ func _build() -> void:
 	_skyline_row(Vector2(8, -3.5), Vector2(6.0, 0), 10, ["tower", "shop"])         # north
 	_skyline_row(Vector2(73.5, 6), Vector2(0, 6.0), 7, ["shop", "tower"], 90)      # east
 	_skyline_row(Vector2(-3.5, 6), Vector2(0, 6.0), 7, ["tower", "shop"], -90)     # west
+	_skyline_row(Vector2(8, 51.5), Vector2(6.0, 0), 10, ["shop", "tower"], 180)    # south
 
 	# Civic traffic circling the plaza (G7).
 	_ring_road(-1.4, 6, 3.4, Color(0.42, 0.48, 0.6))

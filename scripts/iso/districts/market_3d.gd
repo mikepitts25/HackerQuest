@@ -67,6 +67,19 @@ func _build() -> void:
 	for p in [Vector2(18, 30), Vector2(36, 33), Vector2(48, 24)]:
 		_streetlamp(p)
 
+	# A weathered monument in the forecourt — the market's landmark.
+	_statue(Vector2(28, 9), "TRADERS'\nMEMORIAL", Color(0.85, 0.6, 0.3))
+
+	# A few hardy trees breaking up the forecourt and the e-waste yard edges.
+	for p in [Vector2(10, 14), Vector2(30, 16), Vector2(50, 18), Vector2(8, 38),
+			Vector2(46, 38), Vector2(52, 33)]:
+		_tree(p, randf_range(0.85, 1.1))
+
+	# Alley cats picking through the e-waste yard, plus a scanner drone.
+	_stray(Vector2(22, 33), "cat", 8.0)
+	_stray(Vector2(44, 33), "cat", 7.0)
+	_stray(Vector2(16, 31), "bird", 6.0)
+
 	_exit("Plaza", Vector2(63, 14), "plaza", "from_market", 90)
 	_exit("Corp Row", Vector2(63, 32), "corp_row", "from_market", 90)
 	_spawn_wanderers("market")
@@ -74,9 +87,11 @@ func _build() -> void:
 	_mark("from_plaza", Vector2(60, 14))
 	_mark("from_corp", Vector2(60, 32))
 
-	# Tenements ringing the market — chunk-kit skyline.
-	_skyline_row(Vector2(8, -3.5), Vector2(6.0, 0), 9, ["shop", "tower"])      # north
-	_skyline_row(Vector2(-3.5, 8), Vector2(0, 6.0), 6, ["tower", "shop"], -90) # west
+	# Tenements ringing the market — chunk-kit skyline on all four sides.
+	_skyline_row(Vector2(8, -3.5), Vector2(6.0, 0), 9, ["shop", "tower"])       # north
+	_skyline_row(Vector2(-3.5, 8), Vector2(0, 6.0), 6, ["tower", "shop"], -90)  # west
+	_skyline_row(Vector2(67.5, 8), Vector2(0, 6.0), 6, ["shop", "tower"], 90)   # east
+	_skyline_row(Vector2(8, 48.5), Vector2(6.0, 0), 9, ["tower", "shop"], 180)  # south
 
 	# Delivery vans working the market loop (G7) — warmer, a touch faster.
 	_ring_road(-1.4, 5, 3.4, Color(0.6, 0.45, 0.3))

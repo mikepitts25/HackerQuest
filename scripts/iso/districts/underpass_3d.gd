@@ -45,6 +45,24 @@ func _build() -> void:
 	for p in [Vector2(8, 22), Vector2(24, 11), Vector2(34, 24), Vector2(44, 8)]:
 		_streetlamp(p, Color(0.6, 0.85, 1.0))
 
+	# A makeshift memorial tucked south of the deck — the underpass's quiet landmark.
+	_statue(Vector2(32, 28), "FOR THE\nLOST", Color(0.6, 0.85, 1.0))
+
+	# Scrubby trees that took root at the edges (kept clear of the deck overhead).
+	for p in [Vector2(4, 10), Vector2(46, 30), Vector2(6, 32), Vector2(46, 10)]:
+		_tree(p, randf_range(0.8, 1.05))
+
+	# A colony of strays living under the bridge — cats among the junk, a drone.
+	_stray(Vector2(10, 10), "cat", 7.0)
+	_stray(Vector2(34, 10), "cat", 7.0)
+	_stray(Vector2(14, 26), "cat", 7.0)
+	_stray(Vector2(38, 28), "cat", 6.0)
+	_stray(Vector2(24, 24), "bird", 8.0)
+
+	# Tenements crowding the expressway on both sides — buildings to frame the lot.
+	_skyline_row(Vector2(6, -3.5), Vector2(6.0, 0), 7, ["shop", "tower"])       # north
+	_skyline_row(Vector2(6, 38.5), Vector2(6.0, 0), 7, ["tower", "shop"], 180)  # south
+
 	_exit("Plaza", Vector2(47, 17), "plaza", "from_underpass", 90)
 	_spawn_wanderers("underpass")
 

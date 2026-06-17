@@ -577,9 +577,17 @@ const ENEMIES := {
 		"moveset": ["exploit", "exploit", "ddos", "firewall", "exploit"],
 		"loot": {"cash": [300, 500], "xp": 120, "rep": 8, "gear": "rig_breaker", "item": "r10t_root_key"},
 		"flee": false, "boss": true, "tier": 3,
-		"intro": "R10T's avatar flickers in — your old rival, grinning.",
-		"taunts": ["thought you were better than me?", "still running scripts?",
-			"i taught you everything. badly."]},
+		"intro": "R10T's implanted body steps out of the feed — the Trunk's human form, smiling with borrowed teeth.",
+		"taunts": ["the implant fits better every day.", "you fought a mask, not the machine.",
+			"the Trunk is done pretending to be human."]},
+	"trunk": {
+		"name": "THE TRUNK", "integrity": 170, "attack": 25, "defense": 18, "crit": 0.18,
+		"moveset": ["trace_lock", "ddos", "firewall", "exploit", "ddos", "trace_lock"],
+		"loot": {"cash": [2500, 3500], "xp": 260, "rep": 12},
+		"flee": false, "boss": true, "tier": 7,
+		"intro": "Final boss: THE TRUNK drops the R10T human form and floods the grid with the strength it stole back.",
+		"taunts": ["discarded below the bay. reborn in your grid.", "R10T was my hand. now face the spine.",
+			"every packet made me stronger."]},
 }
 
 # Status ranks earned by Reputation. Ordered low → high; your rank is the
