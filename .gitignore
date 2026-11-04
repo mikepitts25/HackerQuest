@@ -6,3 +6,8 @@
 # Node MCP server generated files
 server/node_modules/
 server/build/
+
+# Local release archives, export sources and signing material
+/build/
+*.mobileprovision
+*.p8
