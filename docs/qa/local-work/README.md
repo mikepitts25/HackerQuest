@@ -1,8 +1,10 @@
 # Local work, equipment and shop implementation
 
-Implemented on `codex/local-specialist-work`; production edits remain uncommitted
-because several source files already contained unrelated work. The earlier
-companion/player/drowned-quarter/smoke-test edits were preserved byte for byte.
+Implemented on `codex/local-specialist-work` and subsequently committed, merged
+and pushed to `main` for the authorized TestFlight delivery. Existing boss and
+companion edits were committed separately before the revamp. See
+`../testflight-1.0.0-1/README.md` for release evidence. The earlier companion,
+player, drowned-quarter and smoke-test edits were preserved.
 
 ## What changed
 

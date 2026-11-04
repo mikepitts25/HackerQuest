@@ -1,0 +1,4 @@
+2026-11-04 17:29:15.017 xcodebuild[58569:3859147] [MT] IDEDistribution: -[IDEDistributionLogging _createLoggingBundleAtPath:]: Created bundle at path "/var/folders/4n/7fmkpxss2flc76_9np4q7xdw0000gn/T/HackerQuest_2026-11-04_17-29-15.016.xcdistributionlogs".
+Exported HackerQuest to: /Users/mike/AppIdeas/HackerQuest/build/ios/testflight-1.0.0-1
+** EXPORT SUCCEEDED **
+

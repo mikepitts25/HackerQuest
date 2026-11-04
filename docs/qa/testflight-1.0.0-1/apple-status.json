@@ -1,0 +1,23 @@
+{
+  "recordedAt": "2026-11-04T16:40:18.410510+00:00",
+  "appId": "6830754925",
+  "buildId": "eba61016-5b4f-4333-b38e-d31c8de046d0",
+  "version": "1.0.0",
+  "build": "1",
+  "processingState": "VALID",
+  "beta": {
+    "autoNotifyEnabled": true,
+    "internalBuildState": "IN_BETA_TESTING",
+    "externalBuildState": "NOT_APPLICABLE"
+  },
+  "internalGroup": {
+    "id": "69c08bb1-f1ae-405c-afee-9cfc646a1bde",
+    "name": "Internal iPhone Testing",
+    "isInternalGroup": true,
+    "testerCount": 2,
+    "buildAssigned": true
+  },
+  "testerNotesVerified": true,
+  "testerNotes": "HackerQuest \u2014 first internal TestFlight build\n\nExplore six city zones and find work from 18 local specialists. Try quick deliveries, repair tasks, signal tracing, decryption, and guarded retrievals. Earn the first laptop from two Plaza jobs and buy it at the Patch repair kiosk.\n\nCompare equipment in the pawn shop: rigs improve technical-job pay, firewalls reduce risky-work heat, and implants provide puzzle clues alongside combat stats. Purchases and trophies require explicit equipping. Track a job or save toward a purchase goal.\n\nPlease test movement and scrolling on your iPhone/iPad, task markers and pickup interactions, close/reopen and save/relaunch during puzzles, daily job refresh, combat rewards, equipment switching, audio, safe areas, and performance. Keep your existing save when updating future builds.",
+  "deliveryId": "eba61016-5b4f-4333-b38e-d31c8de046d0"
+}

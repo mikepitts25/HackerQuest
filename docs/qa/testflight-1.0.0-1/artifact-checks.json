@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0",
+  "build": "1",
+  "bundleId": "com.colibricodellc.hackerquest",
+  "appId": "6830754925",
+  "sourceRevision": "ff99b83a0255ef9a7ff7acd91f7ec38a23e799bb",
+  "ipaPath": "build/ios/testflight-1.0.0-1/HackerQuest.ipa",
+  "ipaSHA256": "9d12b4544f6ac18fdb5f08ed4baeef2d44bbe47dc031384bdb669fa28f6c899e",
+  "ipaBytes": 31665824,
+  "pckSHA256": "dafff36ff47aa8eeba204b81e05ee222885719506f43f1b93a20737b7ca1d216",
+  "profileName": "HackerQuest App Store Colibri",
+  "profileUUID": "ba90356c-4d76-4966-92d0-7dd136d8ae60",
+  "team": "33YM89B48D",
+  "certificateSHA1": "F7B57F7B2BBAC766D62D9A88571DE5F0E81084F5",
+  "signatureVerified": true,
+  "sourceManifestVerified": true,
+  "developmentMCPExcluded": true,
+  "sdk": "iphoneos27.2",
+  "minimumOS": "15.0",
+  "devices": [
+    1,
+    2
+  ],
+  "internalOnly": true
+}

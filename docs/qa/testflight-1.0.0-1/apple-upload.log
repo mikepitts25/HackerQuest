@@ -1,0 +1,19 @@
+Running altool at path '/Applications/Xcode.app/Contents/SharedFrameworks/ContentDelivery.framework/Resources/altool'...
+
+2026-11-04 17:34:35.078 ERROR: [ContentDelivery.Uploader.792A8611C0] Failed to create URL for 'CDUploaderStateInfoResumeFilePath'. The file doesn’t exist. (4) The file doesn’t exist.
+2026-11-04 17:34:35.079  INFO: [ContentDelivery.Uploader.792A8611C0] 
+==========================================
+UPLOAD SUCCEEDED with no errors
+Delivery UUID: eba61016-5b4f-4333-b38e-d31c8de046d0
+Transferred 31665824 bytes in 13.136 seconds (2.4MB/s, 19.285Mbps)
+==========================================
+{
+  "details" : {
+    "delivery-uuid" : "eba61016-5b4f-4333-b38e-d31c8de046d0",
+    "transferred" : "31665824 bytes in 13.136 seconds (2.4MB/s, 19.285Mbps)"
+  },
+  "os-version" : "Version 27.2 (Build 26B123)",
+  "success-message" : "No errors uploading archive at 'build/ios/testflight-1.0.0-1/HackerQuest.ipa'.",
+  "tool-path" : "/Applications/Xcode.app/Contents/SharedFrameworks/ContentDelivery.framework/Resources",
+  "tool-version" : "27.10.4 (2.2)"
+}

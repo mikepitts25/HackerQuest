@@ -1,0 +1,29 @@
+Running altool at path '/Applications/Xcode.app/Contents/SharedFrameworks/ContentDelivery.framework/Resources/altool'...
+
+{
+  "app-store-attributes" : {
+    "buildAudienceType" : "INTERNAL_ONLY",
+    "computedMinMacOsVersion" : "12.0",
+    "computedMinVisionOsVersion" : "1.0",
+    "expirationDate" : "expirationDate",
+    "expired" : false,
+    "iconAssetToken" : {
+      "height" : 167,
+      "templateUrl" : "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/a8/9a/f7/a89af7c3-966f-ee9e-8fbd-0c218e6b737d/AppIcon-0-0-2x_U007epad-0-9-0-85-220.png/{w}x{h}bb.{f}",
+      "width" : 167
+    },
+    "minOsVersion" : "15.0",
+    "processingState" : "VALID",
+    "uploadedDate" : "uploadedDate",
+    "usesNonExemptEncryption" : false,
+    "version" : "1"
+  },
+  "build-audience-type" : "INTERNAL_ONLY",
+  "build-status" : "VALID",
+  "delivery-uuid" : "eba61016-5b4f-4333-b38e-d31c8de046d0",
+  "expiration-date" : "2/2/27, 5:36:46 PM",
+  "import-status" : "VALID",
+  "is-on-app-store-connect" : true,
+  "uploaded-date" : "11/4/26, 5:36:46 PM",
+  "uses-non-exempt-encryption" : false
+}
