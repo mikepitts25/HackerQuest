@@ -103,6 +103,12 @@ func go_to(district_id: String, spawn_id: String) -> void:
 	if not GameState.district_unlocked(district_id):
 		GameState.notify("That district is locked.", GameState.COL_WARN)
 		return
+	# The district's R10T crew boss gates forward travel: you can't leave for a
+	# higher-tier district until you've beaten them. They run over and confront
+	# you instead of letting you slip out (fight if you're ready, banter if not).
+	if crew_boss_blocks_transit(current_district_id, district_id, GameState.defeated_crew_bosses):
+		_confront_crew_boss_for_transit(district_id, spawn_id)
+		return
 	var escaped_trace := GameState.trace_active and current_district_id != "" and district_id != current_district_id
 	if escaped_trace:
 		GameState.escape_trace()
@@ -158,10 +164,86 @@ func start_street_combat(enemy_id: String) -> void:
 	start_combat(enemy_id)
 
 
+# --- district crew bosses (set-trigger mini-bosses) ---------------------------
+
+# Walk-up challenge of a district's placed crew boss. Below the readiness bar
+# they wave you off with banter and a level-up hint; at or above it you get the
+# CHALLENGE / BACK OFF choice.
+func challenge_crew_boss(crew_id: String) -> void:
+	var enemy: Dictionary = GameData.ENEMIES.get(crew_id, {})
+	if enemy.is_empty():
+		return
+	if not GameState.crew_boss_ready(crew_id):
+		hud.show_dialog([
+			"%s sizes you up and laughs." % enemy.name,
+			GameData.RIOT_CREW_NOT_READY_LINES.get(crew_id, "Come back when you're stronger."),
+			_crew_boss_ready_hint(crew_id),
+		])
+		return
+	hud.show_confirm_dialog([
+		str(enemy.get("intro", "%s squares up." % enemy.name)),
+		"Challenge %s?" % enemy.name,
+	], "CHALLENGE", "BACK OFF",
+			func() -> void: start_combat(crew_id))
+
+
+# Whether `from`'s undefeated crew boss should block travel to `to`. Pure so the
+# rule (boss alive + moving to a strictly higher-tier district) is unit-testable.
+static func crew_boss_blocks_transit(from: String, to: String, defeated_crew_bosses: Array = []) -> bool:
+	var crew: String = GameData.RIOT_CREW_BY_DISTRICT.get(from, "")
+	if crew == "" or crew in defeated_crew_bosses:
+		return false
+	return int(GameData.DISTRICT_TIERS.get(to, 0)) > int(GameData.DISTRICT_TIERS.get(from, 0))
+
+
+# Stage the forced exit confrontation: the boss runs to the player, then either
+# the fight starts (with the attempted trip queued to resume on a win) or they
+# block the exit with level-up banter if the player isn't ready yet.
+func _confront_crew_boss_for_transit(to: String, spawn_id: String) -> void:
+	var crew: String = GameData.RIOT_CREW_BY_DISTRICT.get(current_district_id, "")
+	if crew == "":
+		return
+	var enemy: Dictionary = GameData.ENEMIES.get(crew, {})
+	var enemy_name: String = str(enemy.get("name", "The boss"))
+	var district: Node = world_container.get_child(0) if world_container.get_child_count() > 0 else null
+	var ready := GameState.crew_boss_ready(crew)
+	var on_arrive := func() -> void:
+		if ready:
+			_pending_transit = {"to": to, "spawn": spawn_id}
+			_on_toast("%s cuts off the way out — settle this first." % enemy_name, GameState.COL_BAD)
+			start_combat(crew)
+		else:
+			if district != null and district.has_method("crew_boss_say"):
+				district.crew_boss_say(GameData.RIOT_CREW_NOT_READY_LINES.get(crew, "Not yet."))
+			hud.show_dialog([
+				"%s blocks your exit." % enemy_name,
+				GameData.RIOT_CREW_NOT_READY_LINES.get(crew, "Come back when you're stronger."),
+				_crew_boss_ready_hint(crew),
+			])
+	if district != null and district.has_method("run_crew_boss_to_player"):
+		district.run_crew_boss_to_player(on_arrive)
+	else:
+		on_arrive.call()
+
+
+func _crew_boss_ready_hint(crew_id: String) -> String:
+	var req: int = int(GameData.RIOT_CREW_CHALLENGE_REQ.get(crew_id, 0))
+	req = clampi(req, 0, GameData.STATUS_RANKS.size() - 1)
+	return "(You're not ready. Come back at %s status — go level up.)" % GameData.STATUS_RANKS[req].title
+
+
 func _on_combat_closed(enemy_id: String, outcome: String) -> void:
 	var district := world_container.get_child(0) if world_container.get_child_count() > 0 else null
 	if district != null and district.has_method("resolve_street_encounter"):
 		district.resolve_street_encounter(enemy_id, outcome)
+	# A forced exit fight: on a win, resume the trip the boss interrupted; any
+	# other result drops it (you stay put until you beat them).
+	if not _pending_transit.is_empty():
+		var pending: Dictionary = _pending_transit
+		_pending_transit = {}
+		var blocker: String = GameData.RIOT_CREW_BY_DISTRICT.get(current_district_id, "")
+		if outcome == "win" and enemy_id == blocker:
+			call_deferred("go_to", pending.to, pending.spawn)
 
 
 # --- street encounters (G6 phase 3) -------------------------------------------
@@ -178,6 +260,8 @@ const DISTRICT_MUSIC := {
 
 var _enc_rng := RandomNumberGenerator.new()
 var _travels_since_combat := 99  # high so the first trip out can spring one
+# A trip a crew boss interrupted at the exit ({to, spawn}); resumed on a win.
+var _pending_transit := {}
 
 
 # Roll for a hostile street NPC to spawn in the district. The fight itself only
@@ -190,7 +274,7 @@ func roll_street_encounter(district_id: String) -> String:
 		return ""
 	var enemy_id := roll_encounter(
 		GameState.status_index(), GameState.heat, GameState.r10t_beaten,
-		GameState.combat_stats().attack, _enc_rng, district_id, GameState.defeated_crew_bosses)
+		GameState.combat_stats().attack, _enc_rng)
 	if enemy_id == "":
 		return ""
 	_travels_since_combat = 0
@@ -198,17 +282,14 @@ func roll_street_encounter(district_id: String) -> String:
 
 
 # Pure encounter decision (no node/GameState deps, so it's unit-testable).
-# Returns a GameData.ENEMIES id, or "" for no fight.
+# Returns a GameData.ENEMIES id, or "" for no fight. Crew bosses are NOT rolled
+# here — each district places its boss as a set-trigger encounter and gates
+# forward travel on them (see _spawn_crew_boss / crew_boss_blocks_transit). This
+# rolls the generic street filler (script kiddies, corner crackers) only.
 static func roll_encounter(status_idx: int, heat: int, r10t_beaten: bool, attack: int,
-		rng: RandomNumberGenerator, district_id := "", defeated_crew_bosses: Array = []) -> String:
+		rng: RandomNumberGenerator) -> String:
 	if attack < 3 or status_idx < 1:
 		return ""  # no real offense, or too green to be worth ambushing
-	if GameData.RIOT_CREW_BY_DISTRICT.has(district_id):
-		var crew_id: String = GameData.RIOT_CREW_BY_DISTRICT[district_id]
-		if not (crew_id in defeated_crew_bosses):
-			var district_req: int = int(GameData.DISTRICTS[district_id].get("status_req", 0))
-			if status_idx >= district_req and rng.randf() < 0.24:
-				return crew_id
 	# R10T no longer roams as a random street boss — his whole arc is the café
 	# duel (Darknet) → the rematch + Deep Marrow gauntlet (Drowned Quarter), which
 	# is where the R10T Root Key drops now. See darknet_3d / drowned_quarter_3d.

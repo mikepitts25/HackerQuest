@@ -783,7 +783,7 @@ func _on_map_travel(district_id: String) -> void:
 	_close_modal(_map_modal)
 	var scene := get_tree().current_scene
 	if scene.has_method("go_to"):
-		scene.go_to(district_id, "fast_travel")  # no such mark -> district center
+		scene.go_to(district_id, "fast_travel")  # no such mark -> a safe entrance (see spawn_point)
 
 
 func _open_phone() -> void:

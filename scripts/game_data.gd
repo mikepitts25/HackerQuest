@@ -235,6 +235,30 @@ const RIOT_CREW_BY_DISTRICT := {
 	"drowned_quarter": "deep_marrow",
 }
 
+# Status index (into STATUS_RANKS) a player must reach before a district's crew
+# boss will actually fight them. Under this, the boss turns you away with banter
+# (see RIOT_CREW_NOT_READY_LINES) — both when you walk up to challenge them and
+# when they intercept you trying to leave for a higher-tier district. Tunable.
+const RIOT_CREW_CHALLENGE_REQ := {
+	"byte_bully": 1,      # Pinger
+	"packet_jackal": 2,   # Operator
+	"tunnel_warden": 3,   # Black Hat
+	"ice_barron": 4,      # Shadow Broker
+	"ghost_admin": 5,     # Ghost
+	"deep_marrow": 6,     # Zero Day
+}
+
+# In-character brush-off when you try to fight a crew boss before you're ready.
+# Paired with a "come back at <rank>" hint built from RIOT_CREW_CHALLENGE_REQ.
+const RIOT_CREW_NOT_READY_LINES := {
+	"byte_bully": "Hah. Your rig still smells like a tutorial. Go skin some script kiddies and crawl back when you're worth my time.",
+	"packet_jackal": "You're packet-loss, friend. I don't waste a fight on a signal this cheap. Level up.",
+	"tunnel_warden": "Down here the weak just echo. You're not loud enough yet. Come back stronger.",
+	"ice_barron": "You're not enterprise-ready. Submit a better resume — in REP — and we'll talk.",
+	"ghost_admin": "I've ghosted accounts bigger than your whole career. Grow one first.",
+	"deep_marrow": "The water spits out small signals. Get deeper before you drown down here.",
+}
+
 # Plaza favors (Alive City phase 2): small community tasks that pay REP, not
 # cash — the Plaza's grind identity. Repeatable, one of each per day.
 const FAVORS := [

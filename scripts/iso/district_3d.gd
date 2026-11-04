@@ -80,6 +80,10 @@ var _buildings: Array = []       # {node, tall} — for botnet LEDs
 var _npc_overrides := {}
 var _active_street_hostile: Node3D
 var _street_encounter_started := false
+# The district's placed R10T crew boss (one per district that has one, until
+# defeated). Kept so the transit gate can run him over to the player.
+var _crew_boss_node: Node3D
+var _crew_boss_id := ""
 
 # Where ambient wanderers may roam. Empty = the whole district (minus a
 # margin). Districts with interiors (the apartment) restrict this so
@@ -112,6 +116,7 @@ func build(p_main: Node) -> void:
 	_render_job_markers()
 	_render_cryptogram_clues()
 	_spawn_street_encounter()
+	_spawn_crew_boss()
 
 
 # Override in subclasses. Set area_size, then lay out the district.
@@ -120,8 +125,17 @@ func _build() -> void:
 
 
 func spawn_point(id: String) -> Vector3:
-	var p: Vector2 = _spawns.get(id, area_size / 2.0)
-	return Vector3(p.x, 0, p.y)
+	if _spawns.has(id):
+		var p: Vector2 = _spawns[id]
+		return Vector3(p.x, 0, p.y)
+	# Unknown spawn (e.g. the map's "fast_travel", which no district marks): land
+	# at a real entrance, NEVER the raw geometric center. Center often sits inside
+	# a central landmark's collider (the plaza statue), and spawning inside a
+	# StaticBody depenetrates the player straight down through the floor.
+	var fallback: Vector2 = _spawns.get("fast_travel", area_size / 2.0)
+	if not _spawns.has("fast_travel") and not _spawns.is_empty():
+		fallback = _spawns.values()[0]  # first registered entrance
+	return Vector3(fallback.x, 0, fallback.y)
 
 
 func _mark(id: String, pos: Vector2) -> void:
@@ -316,6 +330,10 @@ func _spawn_npcs(district_id: String) -> void:
 	for npc_id in GameData.NPCS:
 		var npc: Dictionary = GameData.NPCS[npc_id]
 		if GameState.npc_district(npc_id) != district_id:
+			continue
+		# R10T crew bosses get a dedicated, challengeable avatar (_spawn_crew_boss),
+		# so don't also spawn them here as a plain talkable regular.
+		if npc_id in GameData.RIOT_CREW_BY_DISTRICT.values():
 			continue
 		# At their home district they stand at their fixed mark; visiting a
 		# different district, they loiter near the entrance plaza instead of
@@ -671,6 +689,91 @@ func _fade_meshes(node: Node, tween: Tween) -> void:
 		tween.tween_property(node, "transparency", 0.8, 0.55).set_delay(0.2)
 	for child in node.get_children():
 		_fade_meshes(child, tween)
+
+
+# --- district crew boss (set-trigger mini-boss) -------------------------------
+# Each combat district has one R10T crew boss placed at a fixed spot. You can
+# walk up and challenge them directly, and they block forward travel until
+# beaten (main_3d's transit gate runs them over to you). They keep their slot
+# until defeated; the random street ambush (roll_encounter) is separate filler.
+
+func _spawn_crew_boss() -> void:
+	var here: String = main.current_district_id if main else ""
+	if here == "":
+		return
+	var crew_id: String = GameData.RIOT_CREW_BY_DISTRICT.get(here, "")
+	if crew_id == "" or GameState.crew_boss_defeated(crew_id):
+		return
+	var enemy: Dictionary = GameData.ENEMIES.get(crew_id, {})
+	if enemy.is_empty():
+		return
+	var npc: Dictionary = GameData.NPCS.get(crew_id, {})
+	var pos: Vector2
+	if _npc_overrides.has(crew_id):
+		pos = _npc_overrides[crew_id]
+	elif npc.has("pos"):
+		pos = Vector2(npc.pos[0] * PX, npc.pos[1] * PX)
+	else:
+		pos = Vector2(area_size.x * 0.5, area_size.y * 0.35)
+	pos.x = clampf(pos.x, 1.5, area_size.x - 1.5)
+	pos.y = clampf(pos.y, 1.5, area_size.y - 1.5)
+
+	var ch: Node3D = load(CITIZEN_SCENE).instantiate()
+	ch.name = "CrewBoss_%s" % crew_id
+	ch.add_to_group("crew_boss")
+	ch.set_meta("enemy_id", crew_id)
+	ch.position = Vector3(pos.x, 0, pos.y)
+	ch.rotation.y = deg_to_rad(30)
+	ch.scale = Vector3.ONE * 1.14  # reads as a heavier figure than the crowd
+	add_child(ch)
+	_tint_body(ch, Color("c81e2b"))
+	_crew_boss_node = ch
+	_crew_boss_id = crew_id
+
+	var label := Label3D.new()
+	label.text = "⚠ %s\n[R10T CREW]" % enemy.name
+	label.font_size = 30
+	label.pixel_size = 0.0065
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = Color("ff6b6b")
+	label.outline_size = 8
+	label.position = Vector3(0, 2.0, 0)
+	ch.add_child(label)
+
+	var id: String = crew_id  # capture for the closure
+	_interact(ch, "Confront %s" % enemy.name, Vector3(1.1, 1.6, 1.1),
+			func() -> void: main.challenge_crew_boss(id))
+
+
+# Run the placed crew boss over to the player, then fire on_arrive (the transit
+# gate uses this to stage the forced confrontation). No-op-ish if the boss isn't
+# present — calls on_arrive immediately so the caller can still react.
+func run_crew_boss_to_player(on_arrive: Callable) -> void:
+	if not is_instance_valid(_crew_boss_node):
+		on_arrive.call()
+		return
+	var player := get_tree().get_first_node_in_group("player") as Node3D
+	if player == null:
+		on_arrive.call()
+		return
+	_crew_boss_node.set_process(false)
+	var dir := _crew_boss_node.global_position - player.global_position
+	dir.y = 0.0
+	if dir.length() < 0.1:
+		dir = Vector3(0, 0, 1)
+	dir = dir.normalized()
+	var target := player.global_position + dir * 1.6
+	_crew_boss_node.rotation.y = atan2(-dir.x, -dir.z)  # face the player
+	var tw := _crew_boss_node.create_tween()
+	tw.tween_property(_crew_boss_node, "position", Vector3(target.x, 0, target.z), 0.6) \
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.finished.connect(func() -> void: on_arrive.call())
+
+
+# Floating one-liner over the placed crew boss (level-up brush-off, etc.).
+func crew_boss_say(line: String) -> void:
+	if is_instance_valid(_crew_boss_node):
+		_say_over(_crew_boss_node, line)
 
 
 # Spawns the cars defined in `traffic_lanes`, evenly spaced along each loop.

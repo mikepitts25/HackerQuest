@@ -84,8 +84,8 @@ func _update_pet() -> void:
 	if _pet == null and is_inside_tree():
 		_pet = Node3D.new()
 		_pet.set_script(preload("res://scripts/iso/pet_3d.gd"))
+		_pet.set_meta("pet_id", GameState.active_pet)  # before add_child: _build reads it
 		add_child(_pet)
-		_pet.set_meta("pet_id", GameState.active_pet)
 		_pet.top_level = true  # ignore the player's transform; follow in world space
 		_pet.global_position = global_position - Vector3(0.9, 0, 0.9)
 

@@ -909,6 +909,13 @@ func mark_crew_boss_defeated(enemy_id: String) -> void:
 		defeated_crew_bosses.append(enemy_id)
 
 
+# Whether the player has climbed high enough in status to actually fight a given
+# crew boss. Below this the boss turns them away with banter (see main_3d
+# challenge_crew_boss / the transit gate).
+func crew_boss_ready(crew_id: String) -> bool:
+	return status_index() >= int(GameData.RIOT_CREW_CHALLENGE_REQ.get(crew_id, 0))
+
+
 func target_required_gear(t: Dictionary) -> String:
 	return str(t.get("required_gear", ""))
 

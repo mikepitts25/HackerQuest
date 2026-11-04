@@ -122,7 +122,9 @@ func _build() -> void:
 	# Fathom — the quarter's lone keeper, standing watch on the dry central
 	# walkway between the exit and the Trunk (off the glowing conduit line).
 	# The only named soul down here; reads the endgame in her lines.
-	_npc_overrides = {"fathom": Vector2(24, 13), "riot": Vector2(34, 16)}
+	# Deep Marrow's legacy pixel coords convert to (10.75, 8.25) — inside the
+	# top-left water pool, unreachable. Override onto the dry central walkway.
+	_npc_overrides = {"fathom": Vector2(24, 13), "riot": Vector2(34, 16), "deep_marrow": Vector2(12, 16)}
 	_spawn_npcs("drowned_quarter")
 
 	# R10T fled here after the café duel: the rematch + Deep Marrow gauntlet

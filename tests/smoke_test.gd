@@ -34,6 +34,8 @@ class FakeMain:
 		combat_started = enemy_id
 	func start_street_combat(enemy_id: String) -> void:
 		street_combat_started = enemy_id
+	func challenge_crew_boss(enemy_id: String) -> void:
+		combat_started = enemy_id
 
 
 func _check(cond: bool, what: String) -> void:
@@ -168,6 +170,13 @@ func _count_nodes_with_script(node: Node, script_path: String) -> int:
 		count += 1
 	for child in node.get_children():
 		count += _count_nodes_with_script(child, script_path)
+	return count
+
+
+func _count_meshes(node: Node) -> int:
+	var count := 1 if node is MeshInstance3D else 0
+	for child in node.get_children():
+		count += _count_meshes(child)
 	return count
 
 
@@ -616,8 +625,37 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_check(_has_label3d_text(plaza3d, "Pix\n(starter mentor)"), "named NPC labels include role descriptions")
 	_check(_has_label3d_text(plaza3d, "PET SHOP"), "plaza has a visible pet shop")
+	# Fast-travel / unknown spawn must not drop the player on the geometric center
+	# — that's where the plaza statue's collider sits, and spawning inside it
+	# depenetrates the player straight under the floor. It lands at an entrance.
+	var ft_spawn: Vector3 = plaza3d.spawn_point("fast_travel")
+	_check(not (is_equal_approx(ft_spawn.x, 35.0) and is_equal_approx(ft_spawn.z, 24.0)),
+			"fast-travel spawn avoids the plaza statue at map-center")
+	var entrance_spawn: Vector3 = plaza3d.spawn_point("from_home")
+	_check(is_equal_approx(ft_spawn.x, entrance_spawn.x) and is_equal_approx(ft_spawn.z, entrance_spawn.z),
+			"fast-travel spawn falls back to a real entrance")
 	remove_child(plaza3d)
 	plaza3d.queue_free()
+
+	# --- pets render as distinct models (not all the dog) ---
+	var PetScript := load("res://scripts/iso/pet_3d.gd")
+	var pet_mesh_counts := {}
+	for pid in ["dog", "cat", "bird", "lizard"]:
+		var pet := Node3D.new()
+		pet.set_script(PetScript)
+		pet.set_meta("pet_id", pid)  # set before add_child so _build reads it
+		add_child(pet)
+		pet_mesh_counts[pid] = _count_meshes(pet)
+		_check(pet.call("_accent").is_equal_approx(Color(GameData.PETS[pid].color)),
+				"pet '%s' uses its own accent color" % pid)
+		remove_child(pet)
+		pet.queue_free()
+	# The four builders differ, so the silhouettes aren't identical clones.
+	var distinct_counts := {}
+	for pid in pet_mesh_counts:
+		distinct_counts[pet_mesh_counts[pid]] = true
+	_check(distinct_counts.size() >= 3 and pet_mesh_counts["dog"] != pet_mesh_counts["bird"],
+			"pets build distinct models per type")
 
 	# --- heat / wanted tiers ---
 	GameState.upgrades.erase("vpn")  # isolate from earlier VPN purchase
@@ -1163,6 +1201,50 @@ func _ready() -> void:
 	# R10T no longer roams as a random street boss — his arc is the café duel
 	# (Darknet) → the rematch + Deep Marrow gauntlet (Drowned Quarter).
 	_check(not got_r10t, "R10T no longer roams as a random street boss")
+	var crew_in_pool := false
+	for i in 300:
+		if Main3D.roll_encounter(3, 100, false, 7, erng) in GameData.RIOT_CREW_BY_DISTRICT.values():
+			crew_in_pool = true
+	_check(not crew_in_pool, "crew bosses are never random street ambushes (set-trigger only)")
+
+	# --- district crew bosses: set-trigger mini-bosses + transit gate ---
+	GameState.new_game()  # clean slate: no bosses defeated, status 0
+	_check(not Main3D.crew_boss_blocks_transit("plaza", "home", GameState.defeated_crew_bosses),
+			"crew boss never blocks backward/lateral travel (plaza->home)")
+	_check(Main3D.crew_boss_blocks_transit("plaza", "market", GameState.defeated_crew_bosses),
+			"undefeated crew boss blocks forward travel (plaza->market)")
+	_check(Main3D.crew_boss_blocks_transit("plaza", "underpass", GameState.defeated_crew_bosses),
+			"crew boss blocks any forward-tier jump, not just the next one")
+	_check(not Main3D.crew_boss_blocks_transit("home", "plaza", GameState.defeated_crew_bosses),
+			"a district with no crew boss never gates travel")
+	GameState.mark_crew_boss_defeated("byte_bully")
+	_check(not Main3D.crew_boss_blocks_transit("plaza", "market", GameState.defeated_crew_bosses),
+			"a beaten crew boss stops gating forward travel")
+
+	# Readiness gate: under-leveled players get banter, not a fight.
+	GameState.new_game()
+	GameState.reputation = 0
+	_check(not GameState.crew_boss_ready("ice_barron"), "status 0 isn't ready for a high-tier boss")
+	_check(GameState.crew_boss_ready("byte_bully") == (GameState.status_index() >= 1),
+			"readiness tracks the per-boss status requirement")
+	GameState.reputation = 999
+	_check(GameState.crew_boss_ready("deep_marrow"), "maxed status is ready for any crew boss")
+
+	# Each combat district places its crew boss as a visible set-trigger encounter.
+	GameState.new_game()
+	var boss_fake := FakeMain.new()
+	boss_fake.current_district_id = "plaza"
+	var boss_district: Node3D = load("res://scenes/iso/districts/plaza_3d.tscn").instantiate()
+	add_child(boss_district)
+	boss_district.build(boss_fake)
+	await get_tree().process_frame
+	var placed_boss := _first_in_group_under(boss_district, "crew_boss")
+	_check(placed_boss != null, "district places its crew boss as a set-trigger encounter")
+	_check(placed_boss == null or str(placed_boss.get_meta("enemy_id", "")) == "byte_bully",
+			"the placed boss is the district's designated crew boss")
+	remove_child(boss_district)
+	boss_district.queue_free()
+
 	# The R10T flag survives a save/load round-trip, then clean up the save.
 	GameState.new_game()
 	GameState.r10t_beaten = true
