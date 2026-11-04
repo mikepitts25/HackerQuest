@@ -1,0 +1,158 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/iso/city_prop_motion.gd" id="1"]
+
+[sub_resource type="StandardMaterial3D" id="m0"]
+albedo_color = Color(0.50196, 0.35294, 0.26275, 1)
+roughness = 0.72
+
+[sub_resource type="BoxMesh" id="b0"]
+material = SubResource("m0")
+size = Vector3(1.8, 0.13, 0.85)
+
+[sub_resource type="StandardMaterial3D" id="m1"]
+albedo_color = Color(0.20392, 0.26275, 0.33725, 1)
+roughness = 0.72
+
+[sub_resource type="BoxMesh" id="b1"]
+material = SubResource("m1")
+size = Vector3(0.12, 0.8, 0.65)
+
+[sub_resource type="BoxMesh" id="b2"]
+material = SubResource("m1")
+size = Vector3(0.12, 0.8, 0.65)
+
+[sub_resource type="StandardMaterial3D" id="m2"]
+albedo_color = Color(0.09020, 0.12941, 0.19608, 1)
+roughness = 0.72
+
+[sub_resource type="BoxMesh" id="b3"]
+material = SubResource("m2")
+size = Vector3(0.6, 0.12, 0.5)
+
+[sub_resource type="StandardMaterial3D" id="m3"]
+albedo_color = Color(0.45882, 0.92549, 0.92941, 1)
+roughness = 0.72
+
+[sub_resource type="BoxMesh" id="b4"]
+material = SubResource("m3")
+size = Vector3(0.09, 0.1, 0.18)
+
+[sub_resource type="StandardMaterial3D" id="m4"]
+albedo_color = Color(0.96863, 0.72549, 0.37255, 1)
+roughness = 0.72
+
+[sub_resource type="BoxMesh" id="b5"]
+material = SubResource("m4")
+size = Vector3(0.09, 0.1, 0.18)
+
+[sub_resource type="BoxMesh" id="b6"]
+material = SubResource("m3")
+size = Vector3(0.09, 0.1, 0.18)
+
+[sub_resource type="BoxMesh" id="b7"]
+material = SubResource("m4")
+size = Vector3(0.09, 0.1, 0.18)
+
+[sub_resource type="BoxMesh" id="b8"]
+material = SubResource("m2")
+size = Vector3(0.55, 0.48, 0.05)
+
+[sub_resource type="StandardMaterial3D" id="m5"]
+albedo_color = Color(0.45882, 0.92549, 0.92941, 1)
+roughness = 0.72
+emission_enabled = true
+emission = Color(0.45882, 0.92549, 0.92941, 1)
+emission_energy_multiplier = 1.25
+
+[sub_resource type="BoxMesh" id="b9"]
+material = SubResource("m5")
+size = Vector3(0.45, 0.35, 0.02)
+
+[sub_resource type="BoxMesh" id="b10"]
+material = SubResource("m1")
+size = Vector3(0.55, 0.05, 0.3)
+
+[sub_resource type="BoxMesh" id="b11"]
+material = SubResource("m4")
+size = Vector3(0.11, 0.44, 0.11)
+
+[sub_resource type="BoxMesh" id="b12"]
+material = SubResource("m4")
+size = Vector3(0.46, 0.1, 0.1)
+
+[sub_resource type="BoxMesh" id="b13"]
+material = SubResource("m5")
+size = Vector3(0.07, 0.16, 0.07)
+
+[sub_resource type="BoxShape3D" id="Collision15"]
+size = Vector3(1.8, 0.86, 0.85)
+
+[node name="repair_bench" type="Node3D"]
+script = ExtResource("1")
+motion = "repair"
+
+[node name="Table" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.83, 0)
+mesh = SubResource("b0")
+
+[node name="Leg-0.73" type="MeshInstance3D" parent="."]
+position = Vector3(-0.73, 0.4, 0)
+mesh = SubResource("b1")
+
+[node name="Leg0.73" type="MeshInstance3D" parent="."]
+position = Vector3(0.73, 0.4, 0)
+mesh = SubResource("b2")
+
+[node name="PartsTray" type="MeshInstance3D" parent="."]
+position = Vector3(0.45, 0.96, 0)
+mesh = SubResource("b3")
+
+[node name="Part0" type="MeshInstance3D" parent="."]
+position = Vector3(0.22, 1.05, 0.04)
+mesh = SubResource("b4")
+
+[node name="Part1" type="MeshInstance3D" parent="."]
+position = Vector3(0.36, 1.05, 0.04)
+mesh = SubResource("b5")
+
+[node name="Part2" type="MeshInstance3D" parent="."]
+position = Vector3(0.5, 1.05, 0.04)
+mesh = SubResource("b6")
+
+[node name="Part3" type="MeshInstance3D" parent="."]
+position = Vector3(0.64, 1.05, 0.04)
+mesh = SubResource("b7")
+
+[node name="Laptop" type="MeshInstance3D" parent="."]
+position = Vector3(-0.45, 1.16, -0.15)
+mesh = SubResource("b8")
+
+[node name="Screen" type="MeshInstance3D" parent="."]
+position = Vector3(-0.45, 1.16, -0.11)
+mesh = SubResource("b9")
+
+[node name="Keyboard" type="MeshInstance3D" parent="."]
+position = Vector3(-0.45, 0.94, 0.1)
+mesh = SubResource("b10")
+
+[node name="Arm" type="Node3D" parent="."]
+position = Vector3(0.7, 0.92, -0.28)
+
+[node name="Upright" type="MeshInstance3D" parent="Arm"]
+position = Vector3(0, 0.22, 0)
+mesh = SubResource("b11")
+
+[node name="ToolArm" type="MeshInstance3D" parent="Arm"]
+position = Vector3(-0.18, 0.43, 0)
+mesh = SubResource("b12")
+
+[node name="Tool" type="MeshInstance3D" parent="Arm"]
+position = Vector3(-0.39, 0.34, 0)
+mesh = SubResource("b13")
+
+[node name="Collision15" type="StaticBody3D" parent="."]
+position = Vector3(0, 0.43, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Collision15"]
+shape = SubResource("Collision15")

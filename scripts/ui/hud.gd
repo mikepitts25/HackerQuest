@@ -1,9 +1,19 @@
 extends Control
-## Mobile-first HUD. Top: compact stats panel (day/cash/level + resource bars
+## Mobile-first HUD. Top: operator card, resources and current objective.
+## Bottom: four primary destinations and contextual controls.
+## Compact stats panel (day/cash/level + resource bars
 ## + current objective). Bottom: virtual joystick and interact button.
 ## Modals: dialog box, job board, skills, backpack — all built from one
 ## shared modal helper so they look identical. Action feedback floats above
 ## the player's head (see player.gd), not here.
+
+var _reward_panel: PanelContainer
+var _reward_title: Label
+var _reward_detail: Label
+var _reward_tween: Tween
+var _feed_age := 0.0
+var _more_modal := {}
+var _operator_summary: Label
 
 var _cash_label: Label
 var _status_label: Label
@@ -51,11 +61,11 @@ var _modals: Array = []  # every modal, for one-at-a-time enforcement
 
 func _ready() -> void:
 	theme = UITheme.theme()
-	_add_scanlines()
 	_build_stats_bar()
 	_build_chat_feed()
 	_build_trace_banner()
 	_build_controls()
+	_build_reward_banner()
 	_build_dialog()
 	_jobs_modal = _make_modal("JOB BOARD")
 	_skills_modal = _make_modal("SKILLS")
@@ -72,126 +82,140 @@ func _ready() -> void:
 	_pets_modal = _make_modal("PET SHOP")
 	_phone_modal = _make_modal("BURNER PHONE")
 	_map_modal = _make_modal("CITY GRID")
+	_more_modal = _make_modal("Your operator")
+	_build_more_menu()
 	_city_map = preload("res://scripts/ui/city_map.gd").new()
 	_city_map.custom_minimum_size = Vector2(560, 540)
 	_city_map.travel_requested.connect(_on_map_travel)
 	_map_modal.rows.add_child(_city_map)
-	_modals = [_jobs_modal, _skills_modal, _bag_modal, _wifi_modal, _apt_modal, _furnish_modal, _settings_modal, _contracts_modal, _favors_modal, _goods_modal, _quests_modal, _loadout_modal, _pets_modal, _phone_modal, _map_modal]
+	_modals = [_jobs_modal, _skills_modal, _bag_modal, _wifi_modal, _apt_modal, _furnish_modal, _settings_modal, _contracts_modal, _favors_modal, _goods_modal, _quests_modal, _loadout_modal, _pets_modal, _phone_modal, _map_modal, _more_modal]
 	GameState.stats_changed.connect(_refresh_stats)
 	GameState.stats_changed.connect(_refresh_quest)  # active gigs surface here too
 	GameState.toast.connect(add_feed_message)
+	GameState.toast.connect(_on_reward_message)
 	GameState.prompt_changed.connect(_on_prompt_changed)
 	GameState.quest_changed.connect(_refresh_quest)
 	_refresh_stats()
 	_refresh_quest()
-
-
-# A whisper of CRT: 2px scanlines at very low alpha across the whole screen.
-# Sits at index 0 so all real UI draws above it.
-func _add_scanlines() -> void:
-	var lines := ColorRect.new()
-	var sh := Shader.new()
-	sh.code = """
-shader_type canvas_item;
-void fragment() {
-	float l = step(mod(FRAGCOORD.y, 4.0), 1.5);
-	COLOR = vec4(vec3(0.0), l * 0.06);
-}
-"""
-	var mat := ShaderMaterial.new()
-	mat.shader = sh
-	lines.material = mat
-	lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(lines)
-	lines.set_anchors_preset(Control.PRESET_FULL_RECT)
+	get_node("StatusCard").resized.connect(_layout_safe_hud)
+	resized.connect(_layout_safe_hud)
+	_layout_safe_hud.call_deferred()
 
 
 # --- Stats bar ---------------------------------------------------------------
 
 func _build_stats_bar() -> void:
 	var panel := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(UITheme.INK, 0.92)
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.border_width_bottom = 1
-	style.border_color = Color(UITheme.CYAN, 0.4)
-	style.set_content_margin_all(12)
-	panel.add_theme_stylebox_override("panel", style)
+	panel.name = "StatusCard"
+	panel.add_theme_stylebox_override("panel", UITheme.surface(22, Color("111d30", 0.96)))
 	add_child(panel)
-	# Explicit anchors+offsets: with the slimmer content the preset alone
-	# lets the container shrink-wrap instead of spanning the screen.
-	panel.anchor_left = 0.0
 	panel.anchor_right = 1.0
-	panel.anchor_top = 0.0
-	panel.anchor_bottom = 0.0
-	panel.offset_left = 0.0
-	panel.offset_right = 0.0
-	panel.offset_top = 0.0
-
+	panel.offset_left = 18
+	panel.offset_right = -18
+	panel.offset_top = 18
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 7)
+	vbox.add_theme_constant_override("separation", 10)
 	panel.add_child(vbox)
-
-	# Row 1: who you are (left) · your money (right). Nothing else.
-	var row1 := HBoxContainer.new()
-	row1.add_theme_constant_override("separation", 14)
-	vbox.add_child(row1)
-	_status_label = _text_label(row1, 18, Color("7adfff"))
-	row1.add_child(_spacer())
-	_cash_label = _text_label(row1, 22, GameState.COL_GOOD)
-
-	# Row 2: one quiet meta line — DAY · LVL · REP · BOT.
-	_meta_label = Label.new()
-	_meta_label.add_theme_font_size_override("font_size", 11)
-	_meta_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.45))
-	vbox.add_child(_meta_label)
-
-	# XP as a thin ambient strip — progress you feel, not a labeled widget.
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 12)
+	vbox.add_child(header)
+	var identity := VBoxContainer.new()
+	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity.add_theme_constant_override("separation", 0)
+	header.add_child(identity)
+	_status_label = _text_label(identity, 24, Color("ecf4fa"))
+	_status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_meta_label = _text_label(identity, 13, Color("96a9bf"))
+	_meta_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	var wallet := VBoxContainer.new()
+	wallet.add_theme_constant_override("separation", 0)
+	header.add_child(wallet)
+	var caption := _text_label(wallet, 10, Color("96a9bf"))
+	caption.text = "CREDITS"
+	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_cash_label = _text_label(wallet, 25, Color("8af0d8"))
+	_cash_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_xp_bar = ProgressBar.new()
 	_xp_bar.show_percentage = false
-	_xp_bar.custom_minimum_size = Vector2(0, 4)
+	_xp_bar.custom_minimum_size = Vector2(0, 3)
 	var xbg := StyleBoxFlat.new()
-	xbg.bg_color = Color(0, 0, 0, 0.4)
-	var xfg := StyleBoxFlat.new()
-	xfg.bg_color = Color("9d6bff")
+	xbg.bg_color = Color("24334a")
+	xbg.set_corner_radius_all(6)
+	var xfg := xbg.duplicate()
+	xfg.bg_color = Color("a98ef4")
 	_xp_bar.add_theme_stylebox_override("background", xbg)
 	_xp_bar.add_theme_stylebox_override("fill", xfg)
 	vbox.add_child(_xp_bar)
-
-	# Row 3: vitals, full width, equal thirds.
-	var row3 := HBoxContainer.new()
-	row3.add_theme_constant_override("separation", 8)
-	vbox.add_child(row3)
-	row3.add_child(_make_bar("energy", Color("e8a93d"), 0))
-	row3.add_child(_make_bar("cpu", Color("35b6e8"), 0))
-	row3.add_child(_make_bar("heat", Color("ff4f66"), 0))
-
-	# Row 4: current objective.
-	_quest_label = Label.new()
-	_quest_label.add_theme_font_size_override("font_size", 13)
-	_quest_label.add_theme_color_override("font_color", Color("7adfff"))
+	var vitals := HBoxContainer.new()
+	vitals.add_theme_constant_override("separation", 8)
+	vbox.add_child(vitals)
+	vitals.add_child(_make_bar("energy", Color("b88d42"), 0))
+	vitals.add_child(_make_bar("cpu", Color("3d899f"), 0))
+	vitals.add_child(_make_bar("heat", Color("ba5970"), 0))
+	var mission := PanelContainer.new()
+	var mission_style := UITheme.surface(12, Color("1b2d40"))
+	mission_style.shadow_size = 0
+	mission_style.set_content_margin_all(12)
+	mission.add_theme_stylebox_override("panel", mission_style)
+	vbox.add_child(mission)
+	var objective := VBoxContainer.new()
+	objective.add_theme_constant_override("separation", 3)
+	mission.add_child(objective)
+	var next_up := _text_label(objective, 10, Color("8af0d8"))
+	next_up.text = "NEXT UP"
+	_quest_label = _text_label(objective, 16, Color("e7f0f6"))
 	_quest_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vbox.add_child(_quest_label)
+	_build_navigation_dock()
 
-	# Action rail: a vertical stack hugging the right edge, clear of the
-	# info bar — actions live apart from readouts.
-	var rail := VBoxContainer.new()
-	rail.add_theme_constant_override("separation", 8)
-	add_child(rail)
-	rail.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	rail.offset_left = -132
-	rail.offset_right = -10
-	rail.offset_top = 158
-	_skills_btn = _chip_button(rail, "SKILLS", func() -> void: _open_skills())
-	_chip_button(rail, "QUESTS", func() -> void: show_quests())
-	_chip_button(rail, "GEAR", func() -> void: show_loadout())
-	_chip_button(rail, "BAG", func() -> void: _open_bag())
-	_chip_button(rail, "MAP", func() -> void: _open_map())
-	_chip_button(rail, "PHONE", func() -> void: _open_phone())
-	_wifi_btn = _chip_button(rail, "📶 WIFI", func() -> void: _open_wifi())
-	_chip_button(rail, "⚙ SETUP", func() -> void: show_settings())
-	_wifi_btn.visible = false
+
+func _build_navigation_dock() -> void:
+	var dock := PanelContainer.new()
+	dock.name = "NavigationDock"
+	dock.add_theme_stylebox_override("panel", UITheme.surface(22, Color("111d30", 0.98)))
+	add_child(dock)
+	dock.anchor_top = 1.0
+	dock.anchor_bottom = 1.0
+	dock.anchor_right = 1.0
+	dock.offset_left = 18
+	dock.offset_right = -18
+	dock.offset_top = -104
+	dock.offset_bottom = -18
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	dock.add_child(row)
+	_nav_button(row, "MapButton", "Map", "map", _open_map)
+	_nav_button(row, "QuestsButton", "Quests", "quests", show_quests)
+	_nav_button(row, "BagButton", "Bag", "bag", _open_bag)
+	_nav_button(row, "MoreButton", "More", "more", func() -> void: _open_modal(_more_modal))
+
+
+func _nav_button(parent: Control, node_name: String, label: String, icon: String, action: Callable) -> Button:
+	var button := _chip_button(parent, label, action)
+	button.name = node_name
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.custom_minimum_size = Vector2(0, 54)
+	button.icon = load("res://assets/ui/icons/%s.svg" % icon)
+	button.expand_icon = true
+	button.add_theme_constant_override("icon_max_width", 22)
+	button.add_theme_font_size_override("font_size", 16)
+	return button
+
+
+func _build_more_menu() -> void:
+	_operator_summary = _text_label(_more_modal.rows, 16, Color("96a9bf"))
+	_operator_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 12)
+	_more_modal.rows.add_child(grid)
+	_skills_btn = _nav_button(grid, "SkillsButton", "Skills", "skills", _open_skills)
+	_nav_button(grid, "GearButton", "Loadout", "gear", show_loadout)
+	_nav_button(grid, "PhoneButton", "Messages", "phone", _open_phone)
+	_wifi_btn = _nav_button(grid, "WifiButton", "Wi-Fi", "wifi", _open_wifi)
+	_nav_button(grid, "SettingsButton", "Settings", "settings", show_settings)
+	for child in grid.get_children():
+		child.custom_minimum_size.y = 76
 
 
 func _build_chat_feed() -> void:
@@ -202,7 +226,7 @@ func _build_chat_feed() -> void:
 	style.bg_color = Color(UITheme.INK, 0.62)
 	style.border_color = Color(UITheme.CYAN, 0.24)
 	style.border_width_left = 2
-	style.set_corner_radius_all(4)
+	style.set_corner_radius_all(20)
 	style.set_content_margin_all(9)
 	_chat_feed.add_theme_stylebox_override("panel", style)
 	add_child(_chat_feed)
@@ -210,10 +234,10 @@ func _build_chat_feed() -> void:
 	_chat_feed.anchor_right = 1.0
 	_chat_feed.anchor_top = 0.0
 	_chat_feed.anchor_bottom = 0.0
-	_chat_feed.offset_left = 12.0
-	_chat_feed.offset_right = -150.0
-	_chat_feed.offset_top = 158.0
-	_chat_feed.offset_bottom = 270.0
+	_chat_feed.offset_left = 18.0
+	_chat_feed.offset_right = -18.0
+	_chat_feed.offset_top = 252.0
+	_chat_feed.offset_bottom = 253.0
 
 	_chat_rows = VBoxContainer.new()
 	_chat_rows.add_theme_constant_override("separation", 3)
@@ -224,19 +248,25 @@ func _build_chat_feed() -> void:
 func add_feed_message(text: String, color: Color = GameState.COL_INFO) -> void:
 	if _chat_rows == null:
 		return
+	_feed_age = 0.0
+	_chat_feed.modulate.a = 1.0
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_override("font", UITheme.mono_font())
-	label.add_theme_font_size_override("font_size", 12)
+	label.custom_minimum_size.y = 36
+	label.max_lines_visible = 2
+	label.clip_text = true
+	label.add_theme_font_override("font", UITheme.ui_font())
+	label.add_theme_font_size_override("font_size", 14)
 	label.add_theme_color_override("font_color", color)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_chat_rows.add_child(label)
-	while _chat_rows.get_child_count() > 4:
+	while _chat_rows.get_child_count() > 2:
 		var oldest := _chat_rows.get_child(0)
 		_chat_rows.remove_child(oldest)
 		oldest.queue_free()
+	_chat_feed.offset_bottom = _chat_feed.offset_top + 42
 
 
 func _build_trace_banner() -> void:
@@ -247,15 +277,15 @@ func _build_trace_banner() -> void:
 	style.bg_color = Color(0.18, 0.02, 0.04, 0.94)
 	style.border_color = Color(GameState.COL_BAD, 0.9)
 	style.set_border_width_all(2)
-	style.set_corner_radius_all(4)
+	style.set_corner_radius_all(20)
 	style.set_content_margin_all(10)
 	_trace_banner.add_theme_stylebox_override("panel", style)
 	add_child(_trace_banner)
 	_trace_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_trace_banner.offset_left = 28
-	_trace_banner.offset_right = -160
-	_trace_banner.offset_top = 118
-	_trace_banner.offset_bottom = 170
+	_trace_banner.offset_left = 18
+	_trace_banner.offset_right = -18
+	_trace_banner.offset_top = 250
+	_trace_banner.offset_bottom = 306
 
 	_trace_label = Label.new()
 	_trace_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -271,19 +301,20 @@ func _build_trace_banner() -> void:
 
 func _refresh_stats() -> void:
 	var gs := GameState
-	_status_label.text = gs.status_title()
-	_status_label.add_theme_color_override("font_color", Color(gs.status_color()))
+	_status_label.text = gs.handle
+	_status_label.add_theme_color_override("font_color", Color("ecf4fa"))
 	_cash_label.text = "$%d" % gs.cash
 	var nxt := gs.next_status()
 	var rep_text := ("REP %d max" % gs.reputation) if nxt.is_empty() \
 			else ("REP %d→%d %s" % [gs.reputation, nxt.need, nxt.title])
-	_meta_label.text = "%s · DAY %d · LVL %d · %s · BOT %d" % [gs.handle, gs.day, gs.level, rep_text, gs.botnet_size]
-	_skills_btn.text = "SKILLS +%d" % gs.skill_points if gs.skill_points > 0 else "SKILLS"
+	_meta_label.text = "Level %d  ·  %s  ·  Day %d" % [gs.level, gs.status_title(), gs.day]
+	_operator_summary.text = "%s\n%s  ·  Botnet %d" % [gs.status_title(), rep_text, gs.botnet_size]
+	_skills_btn.text = "Skills +%d" % gs.skill_points if gs.skill_points > 0 else "Skills"
 	_wifi_btn.visible = gs.has_wifi_adapter()
 
 	_xp_bar.max_value = gs.xp_needed()
 	_xp_bar.value = gs.xp
-	var energy_text := "E %d/%d" % [gs.energy, gs.max_energy]
+	var energy_text := "Energy %d/%d" % [gs.energy, gs.max_energy]
 	if gs.is_fatigued():
 		energy_text += "  TIRED"
 	_set_bar("energy", gs.energy, gs.max_energy, energy_text)
@@ -296,7 +327,7 @@ func _refresh_stats() -> void:
 		_set_bar("cpu", gs.cpu, gs.max_cpu, cpu_text)
 	else:
 		_set_bar("cpu", 0, 1, "CPU —")
-	_set_bar("heat", gs.heat, 100, "HEAT %d · %s" % [gs.heat, gs.heat_tier_name()])
+	_set_bar("heat", gs.heat, 100, "Heat %d · %s" % [gs.heat, gs.heat_tier_name()])
 	_bars["heat"].label.add_theme_color_override("font_color",
 		Color(gs.heat_tier_color()) if gs.heat_penalty() > 0.0 else Color(1, 1, 1, 0.95))
 	_set_heat_pulse(gs.heat_penalty() > 0.0)
@@ -325,30 +356,36 @@ func _refresh_quest() -> void:
 		_quest_label.text = "◆ GIG: %s %d/%d → %s%s" % [
 			job.name, job.step, job.steps_total, GameData.DISTRICTS[job.district]["name"], more]
 		return
+	if not GameState.has_computer:
+		if GameState.cash < 100:
+			_quest_label.text = "FIRST RIG  $%d / $100\nPlaza jobs · signal caches · Market scrap" % GameState.cash
+		else:
+			_quest_label.text = "READY TO UPGRADE\nMarket → Pawn Shop → Used Laptop ($100)"
+		return
 	_quest_label.text = "▸  " + GameState.current_quest_text()
 
 
 func _make_bar(key: String, fill_color: Color, width: float) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.show_percentage = false
-	bar.custom_minimum_size = Vector2(width, 22)
+	bar.custom_minimum_size = Vector2(width, 28)
 	if width == 0:  # flexible: share the row equally with siblings
 		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Color(0, 0, 0, 0.4)
-	bg.set_corner_radius_all(2)
+	bg.set_corner_radius_all(6)
 	bg.set_border_width_all(1)
 	bg.border_color = Color(fill_color, 0.45)
 	var fg := StyleBoxFlat.new()
-	fg.bg_color = Color(fill_color, 0.85)
-	fg.set_corner_radius_all(2)
+	fg.bg_color = Color(fill_color, 0.55)
+	fg.set_corner_radius_all(6)
 	bar.add_theme_stylebox_override("background", bg)
 	bar.add_theme_stylebox_override("fill", fg)
 
 	var overlay := Label.new()
 	overlay.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	overlay.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	overlay.add_theme_font_size_override("font_size", 11)
+	overlay.add_theme_font_size_override("font_size", 12)
 	overlay.add_theme_color_override("font_color", Color(1, 1, 1, 0.95))
 	overlay.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	overlay.add_theme_constant_override("outline_size", 4)
@@ -398,14 +435,15 @@ func _spacer() -> Control:
 # --- Touch controls ----------------------------------------------------------
 
 func _build_controls() -> void:
-	var joystick := VirtualJoystick.new()
+	var joystick := preload("res://scripts/ui/virtual_joystick.gd").new()
+	joystick.name = "MovementStick"
 	add_child(joystick)
 	joystick.anchor_top = 1.0
 	joystick.anchor_bottom = 1.0
 	joystick.offset_left = 30
-	joystick.offset_top = -290
-	joystick.offset_right = 270
-	joystick.offset_bottom = -50
+	joystick.offset_top = -340
+	joystick.offset_right = 230
+	joystick.offset_bottom = -140
 
 	_interact_btn = Button.new()
 	_interact_btn.name = "ActionButton"
@@ -417,16 +455,17 @@ func _build_controls() -> void:
 	# The world-verb button speaks cyan, not green — it's "what's in front of
 	# you", not a menu action.
 	var ib := StyleBoxFlat.new()
-	ib.bg_color = Color(UITheme.INK, 0.85)
-	ib.set_corner_radius_all(4)
+	ib.bg_color = Color("8af0d8")
+	ib.set_corner_radius_all(20)
 	ib.set_border_width_all(1)
-	ib.border_color = Color(UITheme.CYAN, 0.6)
+	ib.border_color = Color("8af0d8")
 	ib.set_content_margin_all(10)
 	var ib_pressed := ib.duplicate()
-	ib_pressed.bg_color = Color(UITheme.CYAN, 0.25)
+	ib_pressed.bg_color = Color("5ec8b2")
 	ib_pressed.border_color = UITheme.CYAN
 	var ib_off := ib.duplicate()
-	ib_off.border_color = Color(UITheme.CYAN, 0.12)
+	ib_off.bg_color = Color("152238", 0.94)
+	ib_off.border_color = Color(1, 1, 1, 0.08)
 	_interact_btn.add_theme_stylebox_override("normal", ib)
 	_interact_btn.add_theme_stylebox_override("hover", ib)
 	_interact_btn.add_theme_stylebox_override("pressed", ib_pressed)
@@ -439,28 +478,28 @@ func _build_controls() -> void:
 	_interact_btn.anchor_right = 1.0
 	_interact_btn.anchor_top = 1.0
 	_interact_btn.anchor_bottom = 1.0
-	_interact_btn.offset_left = -210
-	_interact_btn.offset_top = -230
-	_interact_btn.offset_right = -40
-	_interact_btn.offset_bottom = -70
+	_interact_btn.offset_left = -292
+	_interact_btn.offset_top = -254
+	_interact_btn.offset_right = -24
+	_interact_btn.offset_bottom = -144
 	_interact_btn.pressed.connect(func() -> void: GameState.interact_requested.emit())
 
 	_interact_label = Label.new()
 	_interact_label.name = "ActionPromptLabel"
-	_interact_label.text = "…"
+	_interact_label.text = "Move closer to interact"
 	_interact_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_interact_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_interact_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_interact_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_interact_label.clip_text = true
-	_interact_label.add_theme_font_size_override("font_size", 17)
+	_interact_label.add_theme_font_size_override("font_size", 20)
 	_interact_label.add_theme_color_override("font_color", Color(0.4, 0.45, 0.55, 0.6))
 	_interact_btn.add_child(_interact_label)
 	_interact_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_interact_label.offset_left = 10
-	_interact_label.offset_top = 8
-	_interact_label.offset_right = -10
-	_interact_label.offset_bottom = -8
+	_interact_label.offset_left = 18
+	_interact_label.offset_top = 12
+	_interact_label.offset_right = -18
+	_interact_label.offset_bottom = -12
 
 	# TEMP DEBUG: remove before production. Fast-forwards economy/status for endgame testing.
 	var god_btn := Button.new()
@@ -471,7 +510,7 @@ func _build_controls() -> void:
 	god_btn.add_theme_font_size_override("font_size", 14)
 	var god_style := StyleBoxFlat.new()
 	god_style.bg_color = Color("3a1f10", 0.9)
-	god_style.set_corner_radius_all(4)
+	god_style.set_corner_radius_all(20)
 	god_style.set_border_width_all(1)
 	god_style.border_color = Color(GameState.COL_WARN, 0.85)
 	god_style.set_content_margin_all(8)
@@ -479,6 +518,7 @@ func _build_controls() -> void:
 	god_btn.add_theme_stylebox_override("hover", god_style)
 	god_btn.add_theme_color_override("font_color", GameState.COL_WARN)
 	add_child(god_btn)
+	god_btn.hide()
 	god_btn.anchor_left = 1.0
 	god_btn.anchor_right = 1.0
 	god_btn.anchor_top = 1.0
@@ -493,14 +533,18 @@ func _build_controls() -> void:
 
 
 func _on_prompt_changed(text: String) -> void:
-	_interact_label.text = text if text != "" else "…"
+	_interact_label.text = text if text != "" else "Move closer to interact"
 	_interact_btn.disabled = text == ""
 	_interact_label.add_theme_color_override("font_color",
-			Color(0.4, 0.45, 0.55, 0.6) if text == "" else UITheme.CYAN)
+			Color("96a9bf") if text == "" else Color("102b2a"))
 
 
 func _process(_delta: float) -> void:
 	_refresh_trace_banner()
+	_feed_age += _delta
+	if _chat_feed:
+		_chat_feed.visible = not GameState.trace_active
+		_chat_feed.modulate.a = move_toward(_chat_feed.modulate.a, 0.0 if _feed_age > 9.0 else 1.0, _delta * 1.5)
 
 
 func _refresh_trace_banner() -> void:
@@ -521,9 +565,9 @@ func _build_dialog() -> void:
 	style.bg_color = Color(UITheme.INK, 0.97)
 	style.set_content_margin_all(16)
 	style.content_margin_left = 20
-	style.set_corner_radius_all(4)
+	style.set_corner_radius_all(20)
 	style.set_border_width_all(1)
-	style.border_color = Color(UITheme.GREEN, 0.45)
+	style.border_color = Color(1, 1, 1, 0.09)
 	style.border_width_left = 4
 	_dialog_panel.add_theme_stylebox_override("panel", style)
 	add_child(_dialog_panel)
@@ -592,7 +636,7 @@ func show_confirm_dialog(lines: Array, confirm_text: String, cancel_text: String
 # Terminal typewriter: lines type themselves out. Tapping OK mid-type
 # completes the line; tapping on a finished line advances.
 func _show_dialog_line(line: String) -> void:
-	_dialog_label.text = "> " + line
+	_dialog_label.text = line
 	_dialog_label.visible_ratio = 0.0
 	if _type_tween and _type_tween.is_valid():
 		_type_tween.kill()
@@ -632,7 +676,7 @@ func _on_dialog_cancel() -> void:
 func _set_dialog_buttons(confirming: bool, confirm_text := "YES", cancel_text := "NO") -> void:
 	if _dialog_ok_btn == null or _dialog_cancel_btn == null:
 		return
-	_dialog_ok_btn.text = confirm_text if confirming else "OK"
+	_dialog_ok_btn.text = confirm_text if confirming else "Continue"
 	_dialog_cancel_btn.text = cancel_text
 	_dialog_cancel_btn.visible = confirming
 
@@ -668,10 +712,10 @@ func _make_modal(title: String) -> Dictionary:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(UITheme.INK, 0.97)
 	style.set_content_margin_all(18)
-	style.set_corner_radius_all(4)
+	style.set_corner_radius_all(20)
 	style.set_border_width_all(1)
-	style.border_color = Color(UITheme.GREEN, 0.45)
-	style.border_width_top = 2
+	style.border_color = Color(1, 1, 1, 0.09)
+	style.border_width_top = 1
 	inner.add_theme_stylebox_override("panel", style)
 	holder.add_child(inner)
 	inner.custom_minimum_size = Vector2(620, 0)
@@ -682,13 +726,18 @@ func _make_modal(title: String) -> Dictionary:
 
 	var title_label := Label.new()
 	title_label.text = title
-	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.add_theme_font_size_override("font_size", 21)
-	title_label.add_theme_color_override("font_color", UITheme.GREEN)
-	vbox.add_child(title_label)
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	title_label.add_theme_font_size_override("font_size", 24)
+	title_label.add_theme_color_override("font_color", Color("edf5fa"))
+	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var modal_header := HBoxContainer.new()
+	modal_header.add_theme_constant_override("separation", 12)
+	modal_header.add_child(title_label)
+	vbox.add_child(modal_header)
 
 	var rule := ColorRect.new()
-	rule.color = Color(UITheme.GREEN, 0.3)
+	rule.color = Color(1, 1, 1, 0.08)
 	rule.custom_minimum_size = Vector2(0, 1)
 	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(rule)
@@ -705,6 +754,15 @@ func _make_modal(title: String) -> Dictionary:
 
 	var modal := {"root": root, "inner": inner, "scroll": scroll, "title": title_label, "rows": rows, "fade": null}
 
+	var dismiss := Button.new()
+	dismiss.text = "×"
+	dismiss.tooltip_text = "Close"
+	dismiss.custom_minimum_size = Vector2(48, 48)
+	dismiss.focus_mode = Control.FOCUS_NONE
+	dismiss.add_theme_font_size_override("font_size", 24)
+	dismiss.pressed.connect(func() -> void: _close_modal(modal))
+	modal_header.add_child(dismiss)
+
 	# Tapping the dimmed area outside the panel closes the modal — a reliable
 	# escape on touch so a modal can never strand the player.
 	root.gui_input.connect(func(ev: InputEvent) -> void:
@@ -712,7 +770,7 @@ func _make_modal(title: String) -> Dictionary:
 			_close_modal(modal))
 
 	var close := Button.new()
-	close.text = "CLOSE"
+	close.text = "Back to city"
 	close.focus_mode = Control.FOCUS_NONE
 	close.custom_minimum_size = Vector2(0, 52)
 	close.pressed.connect(func() -> void: _close_modal(modal))
@@ -795,18 +853,22 @@ func _open_modal(modal: Dictionary) -> void:
 			m.root.visible = false
 	_fit_modal_to_viewport(modal)
 	modal.root.visible = true
+	get_tree().process_frame.connect(_refit_visible_modal.bind(modal), CONNECT_ONE_SHOT)
 	Audio.sfx("ui_open")
-	# CRT power-on stutter.
+	# A short, steady fade keeps navigation calm and predictable.
 	if modal.fade is Tween and modal.fade.is_valid():
 		modal.fade.kill()
 	modal.root.modulate.a = 0.0
 	var fl: Tween = modal.root.create_tween()
 	modal.fade = fl
-	fl.tween_property(modal.root, "modulate:a", 1.0, 0.05)
-	fl.tween_property(modal.root, "modulate:a", 0.55, 0.04)
-	fl.tween_property(modal.root, "modulate:a", 1.0, 0.06)
+	fl.tween_property(modal.root, "modulate:a", 1.0, 0.16)
 	if not was_open:
 		GameState.lock_ui()
+
+
+func _refit_visible_modal(modal: Dictionary) -> void:
+	if is_instance_valid(modal.root) and modal.root.visible:
+		_fit_modal_to_viewport(modal)
 
 
 func _close_modal(modal: Dictionary) -> void:
@@ -823,7 +885,7 @@ func _fit_modal_to_viewport(modal: Dictionary) -> void:
 	var viewport := get_viewport_rect().size
 	var side_margin := 48.0
 	var vertical_margin := 64.0
-	var chrome_height := 132.0
+	var chrome_height := 190.0
 	var width := minf(620.0, maxf(280.0, viewport.x - side_margin))
 	var rows_height: float = modal.rows.get_combined_minimum_size().y
 	var max_rows_height := maxf(180.0, viewport.y - vertical_margin - chrome_height)
@@ -863,7 +925,7 @@ func _add_row(modal: Dictionary, name_text: String, desc_text: String, btn_text:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(1, 1, 1, 0.04)
 	style.set_content_margin_all(12)
-	style.set_corner_radius_all(10)
+	style.set_corner_radius_all(14)
 	row_panel.add_theme_stylebox_override("panel", style)
 	modal.rows.add_child(row_panel)
 
@@ -1401,6 +1463,9 @@ func show_settings() -> void:
 		Audio.apply_volumes()
 		Audio.sfx("click")  # audible feedback while dragging
 		GameState.save_game())
+	if OS.is_debug_build():
+		_add_row(_settings_modal, "Developer tools", "Fast-forward progress for testing.", "Boost", false,
+				func() -> void: get_node("GodTestButton").pressed.emit())
 	_open_modal(_settings_modal)
 
 
@@ -1409,7 +1474,7 @@ func _add_volume_slider(label_text: String, value: float, on_change: Callable) -
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(1, 1, 1, 0.04)
 	style.set_content_margin_all(12)
-	style.set_corner_radius_all(10)
+	style.set_corner_radius_all(14)
 	panel.add_theme_stylebox_override("panel", style)
 	_settings_modal.rows.add_child(panel)
 
@@ -1492,3 +1557,94 @@ func _modal_label(modal: Dictionary, text: String, color: Color, size: int = 16)
 	modal.rows.add_child(label)
 	if modal.root.visible:
 		_fit_modal_to_viewport(modal)
+
+
+# Reward feedback is non-blocking and has one slot, so bursts never stack over
+# controls or delay play. The persistent feed still keeps the detailed result.
+func _build_reward_banner() -> void:
+	_reward_panel = PanelContainer.new()
+	_reward_panel.name = "RewardBanner"
+	_reward_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reward_panel.z_index = 10
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("10282f")
+	style.border_color = Color("75f4d4")
+	style.border_width_left = 3
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(18)
+	_reward_panel.add_theme_stylebox_override("panel", style)
+	add_child(_reward_panel)
+	_reward_panel.anchor_left = 0.5
+	_reward_panel.anchor_right = 0.5
+	_reward_panel.anchor_top = 0.28
+	_reward_panel.anchor_bottom = 0.28
+	_reward_panel.offset_left = -230
+	_reward_panel.offset_right = 230
+	var column := VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_theme_constant_override("separation", 6)
+	_reward_panel.add_child(column)
+	_reward_title = _text_label(column, 22, Color("8af0d8"))
+	_reward_detail = _text_label(column, 14, Color("b9d6df"))
+	_reward_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_reward_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_reward_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reward_detail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reward_panel.hide()
+
+
+func _on_reward_message(text: String, _color: Color) -> void:
+	var title := ""
+	if text.begins_with("LEVEL UP!"):
+		title = "LEVEL %d · SYSTEM UPGRADED" % GameState.level
+	elif text.begins_with("OBJECTIVE COMPLETE!"):
+		title = "OBJECTIVE COMPLETE"
+	elif text.begins_with("SIGNAL FOUND"):
+		title = "SIGNAL DISCOVERED"
+	else:
+		return
+	if _reward_tween and _reward_tween.is_valid():
+		_reward_tween.kill()
+	_reward_title.text = title
+	_reward_detail.text = text if not text.begins_with("OBJECTIVE COMPLETE!") else text.replace("OBJECTIVE COMPLETE!", "Rewards secured:")
+	_reward_panel.show()
+	_reward_panel.modulate.a = 0.0
+	_reward_tween = create_tween()
+	_reward_tween.tween_property(_reward_panel, "modulate:a", 1.0, 0.16)
+	_reward_tween.tween_interval(2.3)
+	_reward_tween.tween_property(_reward_panel, "modulate:a", 0.0, 0.45)
+	_reward_tween.tween_callback(_reward_panel.hide)
+
+
+func _layout_safe_hud() -> void:
+	var top := 18.0
+	var bottom := 18.0
+	if OS.has_feature("ios") or OS.has_feature("android"):
+		var safe := DisplayServer.get_display_safe_area()
+		var screen := DisplayServer.screen_get_size()
+		if screen.y > 0 and safe.size.y > 0:
+			var ratio := get_viewport_rect().size.y / float(screen.y)
+			top = maxf(top, safe.position.y * ratio + 8.0)
+			bottom = maxf(bottom, (screen.y - safe.end.y) * ratio + 8.0)
+	_apply_hud_insets(top, bottom)
+
+
+func _apply_hud_insets(top: float, bottom: float) -> void:
+	var status := get_node("StatusCard") as Control
+	status.offset_top = top
+	status.offset_bottom = top + status.get_combined_minimum_size().y
+	var dock := get_node("NavigationDock") as Control
+	dock.offset_top = -bottom - 86
+	dock.offset_bottom = -bottom
+	var stick := get_node("MovementStick") as Control
+	stick.offset_top = -bottom - 322
+	stick.offset_bottom = -bottom - 122
+	_interact_btn.offset_top = -bottom - 236
+	_interact_btn.offset_bottom = -bottom - 126
+	var feed_top := top + status.size.y + 12
+	_chat_feed.offset_top = feed_top
+	_chat_feed.offset_bottom = feed_top + 42
+	_trace_banner.offset_top = feed_top
+	_trace_banner.offset_bottom = feed_top + 56
+	_dialog_panel.offset_top = -bottom - 542
+	_dialog_panel.offset_bottom = -bottom - 342

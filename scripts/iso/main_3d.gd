@@ -82,8 +82,8 @@ func _announce_daily_mod() -> void:
 	if GameState.is_new_game:
 		hud.show_dialog([
 			"Another overdue rent notice. You're broke — but you've got a plan: become the best hacker this city has ever seen.",
-			"Step 1: cash. Head out to the PLAZA — there's a job board and people who can help.",
-			"The MARKET past the plaza scraps e-waste and sells a (mostly working) laptop for $100.",
+			"Pix left you a lead: glowing SIGNAL CACHES hold spare credits. Download one on the way through the PLAZA, then check the job board.",
+			"Your first big win: a $100 laptop from the MARKET pawn shop. Jobs, caches, and e-waste will get you there. Open MAP whenever you need a shortcut.",
 		])
 		GameState.is_new_game = false  # intro shows once, not every morning
 	else:

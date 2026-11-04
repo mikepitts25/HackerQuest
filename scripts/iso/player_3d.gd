@@ -22,6 +22,7 @@ var _current: Area3D = null
 @onready var _visual: Node3D = $Visual
 @onready var _anim: AnimationPlayer = $Visual/AnimationPlayer
 var _board: MeshInstance3D
+var _focus_ring: MeshInstance3D
 var _pet: Node3D
 
 
@@ -66,6 +67,7 @@ func _physics_process(_delta: float) -> void:
 	elif _anim.current_animation != "idle":
 		_anim.play("idle")
 	_update_nearest()
+	_update_focus_ring()
 
 
 # The active companion trails the player; it stays top-level so it is not yanked
@@ -139,6 +141,8 @@ func try_interact() -> void:
 
 # Called by the router when the district changes out from under us.
 func reset_proximity() -> void:
+	if _focus_ring:
+		_focus_ring.hide()
 	_near.clear()
 	_current = null
 	GameState.prompt_changed.emit("")
@@ -214,3 +218,26 @@ func _update_nearest() -> void:
 	if best != _current:
 		_current = best
 		GameState.prompt_changed.emit(_current.prompt_text if _current else "")
+
+
+# A single shared ring follows the current target without changing its materials.
+func _update_focus_ring() -> void:
+	if _focus_ring == null:
+		_focus_ring = MeshInstance3D.new()
+		var mesh := TorusMesh.new()
+		mesh.inner_radius = 0.48
+		mesh.outer_radius = 0.53
+		mesh.rings = 24
+		mesh.ring_segments = 6
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color("75f4d4")
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.emission_enabled = true
+		mat.emission = mat.albedo_color
+		mesh.material = mat
+		_focus_ring.mesh = mesh
+		add_child(_focus_ring)
+		_focus_ring.top_level = true
+	_focus_ring.visible = is_instance_valid(_current) and not GameState.is_ui_locked()
+	if _focus_ring.visible:
+		_focus_ring.global_position = Vector3(_current.global_position.x, 0.065, _current.global_position.z)

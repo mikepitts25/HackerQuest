@@ -17,8 +17,8 @@ func _ready() -> void:
 
 
 func _build() -> void:
-	var bg := ColorRect.new()
-	bg.color = Color("0a0e14")
+	var bg := Control.new()
+	bg.set_script(preload("res://scripts/ui/city_backdrop.gd"))
 	add_child(bg)
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
@@ -28,20 +28,27 @@ func _build() -> void:
 
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 16)
-	col.custom_minimum_size = Vector2(420, 0)
+	col.custom_minimum_size = Vector2(480, 0)
 	center.add_child(col)
 
+	var badge := Label.new()
+	badge.text = "// AN UNDERGROUND CYBER ADVENTURE"
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge.add_theme_font_size_override("font_size", 13)
+	badge.add_theme_color_override("font_color", Color("70ddd1"))
+	col.add_child(badge)
+
 	var title := Label.new()
-	title.text = "HACKER QUEST"
+	title.text = "HACKER\nQUEST"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 44)
-	title.add_theme_color_override("font_color", Color("7ee787"))
+	title.add_theme_font_size_override("font_size", 76)
+	title.add_theme_color_override("font_color", Color("8af0d8"))
 	col.add_child(title)
 
 	var sub := Label.new()
-	sub.text = "from broke wannabe to elite operator"
+	sub.text = "Own the signal. Outrun the trace.\nMake this city yours."
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.add_theme_font_size_override("font_size", 16)
+	sub.add_theme_font_size_override("font_size", 17)
 	sub.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
 	col.add_child(sub)
 
@@ -57,11 +64,17 @@ func _build() -> void:
 			label = "CONTINUE\nDay %d · Lvl %d · %s\n$%d" % [s.day, s.level, rank, s.cash]
 		var cont := _button(col, label)
 		cont.custom_minimum_size = Vector2(0, 96)
-		cont.add_theme_color_override("font_color", Color("7ee787"))
+		cont.add_theme_color_override("font_color", Color("8af0d8"))
 		cont.pressed.connect(_on_continue)
 
-	_new_btn = _button(col, "NEW GAME")
+	_new_btn = _button(col, "START YOUR STORY" if not GameState.has_save() else "NEW GAME")
 	_new_btn.pressed.connect(_on_new_game)
+	var foot := Label.new()
+	foot.text = "EXPLORE  /  HACK  /  RISE"
+	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	foot.add_theme_font_size_override("font_size", 12)
+	foot.add_theme_color_override("font_color", Color("657a98"))
+	col.add_child(foot)
 
 
 func _button(parent: Control, text: String) -> Button:

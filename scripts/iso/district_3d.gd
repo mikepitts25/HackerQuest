@@ -97,6 +97,11 @@ func build(p_main: Node) -> void:
 	main = p_main
 	_build()
 	_ground_apron()
+	preload("res://scripts/iso/city_set_dressing.gd").populate(self, str(main.get("current_district_id")))
+	var atmosphere := Node3D.new()
+	atmosphere.set_script(preload("res://scripts/iso/street_atmosphere.gd"))
+	add_child(atmosphere)
+	atmosphere.build(self, str(main.get("current_district_id")), area_size)
 	_add_heat_patrol()
 	_add_police_presence()
 	_add_botnet_glow()
@@ -158,6 +163,11 @@ func _slab(pos: Vector2, size: Vector2, thickness: float, y: float, color: Color
 	mat.albedo_color = color
 	mat.roughness = 0.95
 	bm.material = mat
+	if y <= 0.0 and thickness <= 0.12 and area_size.x > 20:
+		var pavement := ShaderMaterial.new()
+		pavement.shader = preload("res://assets/iso/street_surface.gdshader")
+		pavement.set_shader_parameter("base_color", color)
+		bm.material = pavement
 	m.mesh = bm
 	m.position = Vector3(pos.x + size.x / 2.0, y, pos.y + size.y / 2.0)
 	add_child(m)
@@ -207,10 +217,11 @@ func _sign(text: String, pos: Vector2, height := 1.9, font_size := 48) -> Label3
 	var l := Label3D.new()
 	l.text = text
 	l.font_size = font_size
-	l.pixel_size = 0.01
+	l.pixel_size = 0.0065
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.modulate = Color(1, 1, 1, 0.8)
-	l.outline_size = 10
+	l.outline_size = 5
+	l.no_depth_test = false
 	l.position = Vector3(pos.x, height, pos.y)
 	add_child(l)
 	return l
@@ -574,7 +585,7 @@ func _spawn_street_encounter() -> void:
 	var label := Label3D.new()
 	label.text = "⚠ %s" % enemy.name
 	label.font_size = 30
-	label.pixel_size = 0.01
+	label.pixel_size = 0.0065
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color("ff9b9b")
 	label.outline_size = 8
@@ -771,7 +782,7 @@ func _job_marker(pos: Vector2, color: Color, label_text: String, prompt: String,
 	var lbl := Label3D.new()
 	lbl.text = "◆ GIG\n%s" % label_text
 	lbl.font_size = 30
-	lbl.pixel_size = 0.01
+	lbl.pixel_size = 0.0065
 	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	lbl.modulate = color
 	lbl.outline_size = 8
@@ -876,7 +887,7 @@ func _spawn_cop(_index: int, tracker := false) -> void:
 	var label := Label3D.new()
 	label.text = "TRACE UNIT" if tracker else "BEAT COP"
 	label.font_size = 28
-	label.pixel_size = 0.01
+	label.pixel_size = 0.0065
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color("ffccd2") if tracker else Color("7adfff")
 	label.outline_size = 8
@@ -1002,6 +1013,20 @@ func _billboard(pos: Vector2, yaw_deg := 0.0, ad := {}) -> void:
 # A food venue you can buy a meal at: restores energy for cash (a top-up that
 # isn't sleep). Renders a lit stall with an awning and a glowing sign.
 func _eatery(label: String, pos: Vector2, cost: int, energy_gain: int, accent := Color(1.0, 0.55, 0.3), yaw_deg := 0.0) -> void:
+	var lower := label.to_lower()
+	if "noodle" in lower or "ramen" in lower or label in ["Underpass Cart", "Zero/One Counter"]:
+		var cart := _prop("res://assets/iso/props/city/prop_noodle_cart.tscn", pos, yaw_deg)
+		cart.set_accent(accent)
+		var glow := OmniLight3D.new()
+		glow.position = Vector3(0, 1.7, 0.4)
+		glow.light_color = accent
+		glow.light_energy = 1.3
+		glow.omni_range = 4.5
+		cart.add_child(glow)
+		_sign(label, pos, 2.5, 36)
+		_interact(cart, "Eat at %s ($%d)" % [label, cost], Vector3(2.6, 1.4, 1.6),
+				func() -> void: GameState.buy_meal(label, cost, energy_gain))
+		return
 	var holder := Node3D.new()
 	holder.position = Vector3(pos.x, 0, pos.y)
 	holder.rotation.y = deg_to_rad(yaw_deg)
@@ -1300,7 +1325,7 @@ func _workstation(pos: Vector2, yaw_deg := 0.0, glow := Color(0.3, 0.9, 0.8), oc
 		var lbl := Label3D.new()
 		lbl.text = tag
 		lbl.font_size = 22
-		lbl.pixel_size = 0.01
+		lbl.pixel_size = 0.0065
 		lbl.modulate = Color(glow.r, glow.g, glow.b, 0.7)
 		lbl.outline_size = 6
 		lbl.position = Vector3(-0.6, 1.2, -0.06)

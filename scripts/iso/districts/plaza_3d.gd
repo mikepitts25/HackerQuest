@@ -20,6 +20,11 @@ func _build() -> void:
 	_interact(board, "Check jobs", Vector3(1.5, 1.5, 0.4),
 			func() -> void: main.show_jobs())
 	_collider(Vector2(24, 12), Vector3(1.5, 1.5, 0.3))
+	var starter_hint := _sign("STREET GIGS · START HERE", Vector2(24, 12), 2.0, 25)
+	starter_hint.modulate = Color("8af0d8")
+	starter_hint.set_script(preload("res://scripts/iso/starter_hint.gd"))
+	starter_hint.refresh()
+	GameState.stats_changed.connect(starter_hint.refresh)
 
 	# Community board — favors for REP, the Plaza's grind identity.
 	_box_interactable("Help out (favors)", Vector2(28, 12), Vector3(0.9, 1.3, 0.25),

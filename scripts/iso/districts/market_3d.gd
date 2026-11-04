@@ -31,6 +31,11 @@ func _build() -> void:
 					GameState.notify("The pawn shop's shuttered for the night. The owner sighs and lets you in anyway.", GameState.COL_INFO)
 				main.open_shop())
 	_collider(Vector2(14, 12), Vector3(1.8, 1.2, 0.7))
+	var laptop_hint := _sign("YOUR FIRST LAPTOP · $100", Vector2(14, 12), 2.0, 25)
+	laptop_hint.modulate = Color("ffd18a")
+	laptop_hint.set_script(preload("res://scripts/iso/starter_hint.gd"))
+	laptop_hint.refresh()
+	GameState.stats_changed.connect(laptop_hint.refresh)
 
 	# Vex the fence keeps to the back alley; Sparks the parts-buyer works a mid-
 	# yard stall. Spread out so the market isn't one clump of regulars.

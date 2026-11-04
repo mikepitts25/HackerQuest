@@ -1,4 +1,4 @@
-class_name VirtualJoystick
+class_name HackerQuestJoystick
 extends Control
 ## Simple on-screen joystick. Writes its vector into GameState.touch_vector,
 ## which the player reads each physics frame. Works with mouse on desktop via
@@ -49,14 +49,15 @@ func _release() -> void:
 func _draw() -> void:
 	var center := size / 2.0
 	var radius := size.x / 2.0 - 10.0
-	var cyan := Color(0.48, 0.87, 1.0)
-	draw_circle(center, radius, Color(cyan, 0.04))
-	draw_arc(center, radius, 0, TAU, 64, Color(cyan, 0.3), 1.5)
-	draw_arc(center, radius - 6.0, 0, TAU, 64, Color(cyan, 0.08), 1.0)
-	for i in 4:  # cardinal ticks
+	var active := _vec.length() > DEAD_ZONE
+	draw_circle(center, radius, Color("101d30", 0.72))
+	draw_arc(center, radius, 0, TAU, 64, Color("b9d3e5", 0.16), 1.5, true)
+	for i in 4:
 		var dir := Vector2.RIGHT.rotated(i * PI / 2.0)
-		draw_line(center + dir * (radius - 8.0), center + dir * (radius - 1.0), Color(cyan, 0.45), 2.0)
+		var p := center + dir * (radius - 17)
+		var side := dir.orthogonal() * 3.5
+		draw_polyline(PackedVector2Array([p - dir * 4 + side, p, p - dir * 4 - side]), Color("b9d3e5", 0.32), 1.5, true)
 	var knob := center + _vec * (radius - 28.0)
-	draw_circle(knob, 26.0, Color(cyan, 0.1))
-	draw_arc(knob, 26.0, 0, TAU, 40, Color(cyan, 0.65), 1.5)
-	draw_circle(knob, 9.0, Color(0.49, 0.91, 0.53, 0.85))
+	draw_circle(knob + Vector2(0, 3), 27, Color(0, 0, 0, 0.18))
+	draw_circle(knob, 26, Color("8af0d8") if active else Color("d2e1e9", 0.90))
+	draw_circle(knob, 6, Color("18313e", 0.45))

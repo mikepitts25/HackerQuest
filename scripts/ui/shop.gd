@@ -33,7 +33,7 @@ func _input(event: InputEvent) -> void:
 
 func _build_ui() -> void:
 	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color("12101a")
+	bg.bg_color = Color("0d1728")
 	add_theme_stylebox_override("panel", bg)
 
 	var margin := MarginContainer.new()
@@ -47,7 +47,7 @@ func _build_ui() -> void:
 	margin.add_child(vbox)
 
 	var title := Label.new()
-	title.text = "PAWN SHOP"
+	title.text = "Pawn shop"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 28)
 	vbox.add_child(title)
@@ -75,7 +75,7 @@ func _build_ui() -> void:
 	scroll.add_child(_rows_box)
 
 	var close := Button.new()
-	close.text = "LEAVE"
+	close.text = "Back to city"
 	close.focus_mode = Control.FOCUS_NONE
 	close.custom_minimum_size = Vector2(0, 56)
 	close.pressed.connect(close_shop)
@@ -186,7 +186,7 @@ func _shop_row(name_text: String, desc_text: String, btn_text: String, disabled:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(1, 1, 1, 0.05)
 	style.set_content_margin_all(12)
-	style.set_corner_radius_all(8)
+	style.set_corner_radius_all(16)
 	panel.add_theme_stylebox_override("panel", style)
 	_cur.add_child(panel)
 
@@ -230,13 +230,13 @@ func _begin_section(title: String, count: int) -> void:
 	header.text = "%s  %s   [%d]" % ["▾" if not collapsed else "▸", title, count]
 	header.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	header.focus_mode = Control.FOCUS_NONE
-	header.custom_minimum_size = Vector2(0, 44)
+	header.custom_minimum_size = Vector2(0, 52)
 	header.add_theme_font_size_override("font_size", 16)
 	header.add_theme_color_override("font_color", Color("7ee787"))
 	var hs := StyleBoxFlat.new()
-	hs.bg_color = Color(0.49, 0.91, 0.53, 0.1)
+	hs.bg_color = Color("1b2d40")
 	hs.set_content_margin_all(8)
-	hs.set_corner_radius_all(6)
+	hs.set_corner_radius_all(12)
 	header.add_theme_stylebox_override("normal", hs)
 	header.add_theme_stylebox_override("hover", hs)
 	header.add_theme_stylebox_override("pressed", hs)
