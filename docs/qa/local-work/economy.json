@@ -1,0 +1,56 @@
+[
+	{
+		"cpu": 0,
+		"energy": 1,
+		"food_allowance": 4,
+		"job": "Deliver a neighbor's charger",
+		"net_after_food": 44,
+		"pay": 48,
+		"source": "plaza_board"
+	},
+	{
+		"cpu": 2,
+		"energy": 2,
+		"food_allowance": 8,
+		"job": "Wipe the returned drives",
+		"net_after_food": 90,
+		"pay": 98,
+		"source": "market_pawn"
+	},
+	{
+		"cpu": 3,
+		"energy": 2,
+		"food_allowance": 8,
+		"job": "Find the broken relay",
+		"net_after_food": 153,
+		"pay": 161,
+		"source": "underpass_utility"
+	},
+	{
+		"cpu": 3,
+		"energy": 2,
+		"food_allowance": 8,
+		"job": "Repair an access badge reader",
+		"net_after_food": 328,
+		"pay": 336,
+		"source": "corp_board"
+	},
+	{
+		"cpu": 3,
+		"energy": 2,
+		"food_allowance": 8,
+		"job": "Trace rig-hall packet loss",
+		"net_after_food": 692,
+		"pay": 700,
+		"source": "darknet_rig"
+	},
+	{
+		"cpu": 3,
+		"energy": 2,
+		"food_allowance": 8,
+		"job": "Restore the spine relay",
+		"net_after_food": 1182,
+		"pay": 1190,
+		"source": "drowned_relay"
+	}
+]

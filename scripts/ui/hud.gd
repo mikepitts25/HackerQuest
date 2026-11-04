@@ -7,6 +7,8 @@ extends Control
 ## shared modal helper so they look identical. Action feedback floats above
 ## the player's head (see player.gd), not here.
 
+var work_ui: RefCounted
+
 var _reward_panel: PanelContainer
 var _reward_title: Label
 var _reward_detail: Label
@@ -89,6 +91,8 @@ func _ready() -> void:
 	_city_map.travel_requested.connect(_on_map_travel)
 	_map_modal.rows.add_child(_city_map)
 	_modals = [_jobs_modal, _skills_modal, _bag_modal, _wifi_modal, _apt_modal, _furnish_modal, _settings_modal, _contracts_modal, _favors_modal, _goods_modal, _quests_modal, _loadout_modal, _pets_modal, _phone_modal, _map_modal, _more_modal]
+	work_ui = preload("res://scripts/ui/work_ui.gd").new()
+	work_ui.setup(self)
 	GameState.stats_changed.connect(_refresh_stats)
 	GameState.stats_changed.connect(_refresh_quest)  # active gigs surface here too
 	GameState.toast.connect(add_feed_message)
@@ -350,17 +354,25 @@ func _refresh_quest() -> void:
 	# An accepted gig is your most immediate objective — surface where to go.
 	if not GameState.active_jobs.is_empty():
 		var job: Dictionary = GameState.active_jobs[0]
+		for candidate in GameState.active_jobs:
+			if candidate.get("uid", "") == GameState.tracked_job:
+				job = candidate
+				break
 		var more := ""
 		if GameState.active_jobs.size() > 1:
 			more = "  (+%d more)" % (GameState.active_jobs.size() - 1)
 		_quest_label.text = "◆ GIG: %s %d/%d → %s%s" % [
 			job.name, job.step, job.steps_total, GameData.DISTRICTS[job.district]["name"], more]
 		return
+	var goal: Dictionary = preload("res://scripts/work_system.gd").goal_info(GameState)
+	if not goal.is_empty():
+		_quest_label.text = "%s · $%d / $%d\n%s" % [goal.name, GameState.cash, goal.price, "Ready · " + str(goal.location) if goal.shortfall == 0 else "$%d to go · earn from local specialists" % goal.shortfall]
+		return
 	if not GameState.has_computer:
 		if GameState.cash < 100:
-			_quest_label.text = "FIRST RIG  $%d / $100\nPlaza jobs · signal caches · Market scrap" % GameState.cash
+			_quest_label.text = "FIRST RIG  $%d / $100\nPlaza jobs · first laptop at Patch kiosk" % GameState.cash
 		else:
-			_quest_label.text = "READY TO UPGRADE\nMarket → Pawn Shop → Used Laptop ($100)"
+			_quest_label.text = "READY TO UPGRADE\nPlaza → Patch kiosk → Used Laptop ($100)"
 		return
 	_quest_label.text = "▸  " + GameState.current_quest_text()
 
@@ -824,6 +836,7 @@ func _open_map() -> void:
 	var cur: Variant = get_tree().current_scene.get("current_district_id")
 	_city_map.current_district = cur if cur is String else ""
 	_city_map.queue_redraw()
+	work_ui.map_sources(_map_modal)
 	_open_modal(_map_modal)
 
 
@@ -837,6 +850,7 @@ func _any_modal_open() -> bool:
 func _open_modal(modal: Dictionary) -> void:
 	if modal.root.visible:
 		_fit_modal_to_viewport(modal)
+		get_tree().process_frame.connect(_refit_visible_modal.bind(modal), CONNECT_ONE_SHOT)
 		return
 	# Don't stack a modal on a dialog (that double-locked the UI) — let the
 	# player finish reading it first.
@@ -938,6 +952,7 @@ func _add_row(modal: Dictionary, name_text: String, desc_text: String, btn_text:
 	row.add_child(info)
 	var name_label := Label.new()
 	name_label.text = name_text
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.add_theme_font_size_override("font_size", 18)
 	info.add_child(name_label)
 	if desc_text != "":
@@ -969,42 +984,31 @@ var _jobs_board := "plaza"
 
 
 func show_jobs(board: String = "plaza") -> void:
-	_jobs_board = board
-	_refresh_jobs()
-	_open_modal(_jobs_modal)
+	work_ui.show_source("corp_board" if board == "corp" else "plaza_board")
 
 
 # Loadout — derived combat/hacking stats + equipped gear. Buy/equip at shop.
 func show_loadout() -> void:
 	_clear_rows(_loadout_modal)
-	var rows: VBoxContainer = _loadout_modal.rows
-	var gs := GameState
-	var stats := Label.new()
-	stats.text = "CYBER-ATK %d   ·   DEF %d   ·   INTEGRITY %d   ·   CRIT %d%%" % [
-			gs.total_cyber_attack(), gs.total_defense(), gs.total_integrity(), int(gs.total_crit() * 100)]
-	stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	stats.add_theme_color_override("font_color", Color("7ee787"))
-	rows.add_child(stats)
-	var hint := Label.new()
-	hint.text = "a sharper RIG also lifts your hack odds (+%d%%)." % int(gs.gear_hack_bonus() * 100)
-	hint.add_theme_font_size_override("font_size", 12)
-	hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.45))
-	rows.add_child(hint)
+	var work = preload("res://scripts/work_system.gd")
+	var utility: Dictionary = work.gear_utility(GameState)
+	_modal_label(_loadout_modal, "ATK %d · DEF %d · INTEGRITY %d · CRIT %d%%" % [GameState.total_cyber_attack(),GameState.total_defense(),GameState.total_integrity(),int(GameState.total_crit()*100)], Color("8af0d8"),18)
+	_modal_label(_loadout_modal,"Technical pay +%d%% · risky technical heat -%d · puzzle clues %d\nEquipping changes future offers. Accepted pay stays fixed." % [int(utility.pay*100),utility.heat,utility.clues],Color("b8c9dc"),16)
 	for slot in GameData.GEAR_SLOTS:
-		var id: String = gs.gear.get(slot, "")
-		var nm := "— empty —"
-		if id != "":
-			nm = GameData.GEAR[id].name
-		var l := Label.new()
-		l.text = "  %s:  %s" % [slot.to_upper(), nm]
-		l.add_theme_color_override("font_color", Color("d8e2ec") if id != "" else Color(1, 1, 1, 0.4))
-		rows.add_child(l)
-	var tip := Label.new()
-	tip.text = "Buy & swap gear at the pawn shop (Market)."
-	tip.add_theme_font_size_override("font_size", 12)
-	tip.add_theme_color_override("font_color", Color("7adfff"))
-	rows.add_child(tip)
+		_modal_label(_loadout_modal,slot.to_upper(),Color("8af0d8"),17)
+		var any := false
+		for id in GameState.owned_gear:
+			if not GameData.GEAR.has(id) or GameData.GEAR[id].slot != slot: continue
+			any = true
+			var item: Dictionary = GameData.GEAR[id]
+			var selected: bool = GameState.gear.get(slot, "") == id
+			_add_row(_loadout_modal,item.name,work.equipment_text(id,GameState),"EQUIPPED" if selected else "EQUIP",selected,_equip_owned.bind(id))
+		if not any: _modal_label(_loadout_modal,"Empty · equipment is sold at the Market pawn shop.",Color("b8c9dc"),16)
 	_open_modal(_loadout_modal)
+
+func _equip_owned(id: String) -> void:
+	GameState.equip_gear(id)
+	show_loadout()
 
 
 func show_pet_shop() -> void:
@@ -1052,6 +1056,7 @@ func _refresh_quests() -> void:
 	active.add_theme_color_override("font_color", Color("7adfff"))
 	rows.add_child(active)
 
+	work_ui.journal(_quests_modal)
 	_quest_section(rows, "STORY")
 	for i in GameData.QUESTS.size():
 		var q: Dictionary = GameData.QUESTS[i]
@@ -1599,6 +1604,10 @@ func _on_reward_message(text: String, _color: Color) -> void:
 		title = "LEVEL %d · SYSTEM UPGRADED" % GameState.level
 	elif text.begins_with("OBJECTIVE COMPLETE!"):
 		title = "OBJECTIVE COMPLETE"
+	elif text.begins_with("JOB COMPLETE"):
+		title = "WORK PAID"
+	elif text.begins_with("GOAL READY"):
+		title = "PURCHASE WITHIN REACH"
 	elif text.begins_with("SIGNAL FOUND"):
 		title = "SIGNAL DISCOVERED"
 	else:

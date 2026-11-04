@@ -83,7 +83,7 @@ func _announce_daily_mod() -> void:
 		hud.show_dialog([
 			"Another overdue rent notice. You're broke — but you've got a plan: become the best hacker this city has ever seen.",
 			"Pix left you a lead: glowing SIGNAL CACHES hold spare credits. Download one on the way through the PLAZA, then check the job board.",
-			"Your first big win: a $100 laptop from the MARKET pawn shop. Jobs, caches, and e-waste will get you there. Open MAP whenever you need a shortcut.",
+			"Your first big win: a $100 laptop. Earn it from PLAZA jobs, then visit the PATCH REPAIR KIOSK in the Plaza. The MARKET pawn shop has the full upgrade range.",
 		])
 		GameState.is_new_game = false  # intro shows once, not every morning
 	else:
@@ -301,6 +301,10 @@ static func roll_encounter(status_idx: int, heat: int, r10t_beaten: bool, attack
 		pool.append("street_hacker")
 		pool.append("street_hacker")
 	return pool[rng.randi() % pool.size()]
+
+
+func show_work_source(source_id: String) -> void:
+	hud.work_ui.show_source(source_id)
 
 
 func show_jobs(board: String = "plaza") -> void:

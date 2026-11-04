@@ -1,0 +1,19 @@
+# Execution ledger — plan: 2026-11-04-local-specialist-work.md
+
+- Baseline: 547b378; source snapshot /tmp/hackerquest-local-work-baseline. Existing dirty files preserved on branch codex/local-specialist-work.
+- Ruling: implement in this checkout on a dedicated branch with an external baseline snapshot; preserve existing uncommitted companion/boss work and test in isolated copies. No production commits combining user changes.
+- Pre-flight: WorkUI consumes WorkSystem service; markers and combat outcomes route through shared main; purchase utilities share the same calculations as quotes. Legacy complete_job remains separate.
+- Task 1: lifecycle checks pass: deterministic 18-source/36-template catalog; safe starter earnings; atomic CPU/energy; persisted puzzles/clues; claims, sleep, abandonment, and once-only rewards.
+- Task 2: real pointer solves repair/signal/decryption; proximity actions reach all 18 sources; collision checks cover every authored stop. An alley stop coincided with the back wall and was moved to the dry alley.
+- Task 3: pointer sets purchase goal, buys and explicitly equips rig; shop/loadout comparisons render. Rig bonuses 10/15/20%, firewall heat protection 1/2/3, implant clues 1/2/3. Starter encounters now $35-55 and street hackers $100-160.
+- Review fixed: companion multiplier was duplicated; exact $48 -> $53 companion assertion failed then passed after sharing hustle_mult.
+- Review fixed: real combat result-screen reload lost victory/retry state; win/loss reload assertions failed then passed after settling work at outcome resolution before outcome saves.
+- Review coverage: unknown saved source completes with fallback mastery; old saves default additive fields; legacy floating route positions compared approximately across JSON serialization.
+- Ruling: complete review observations about map tracking and goal notices as required behavior, not deferred polish; selected jobs now receive a distinct map marker and goal notices use the common stats mutation signal.
+- Ruling: add limited pawn consignment stock at the Plaza repair specialist because existing boss travel gates precede access to the central shop. Keeps gates intact, makes the first earned purchase accessible; costs a small expansion of one specialist's menu. Added a fresh-run pointer/proximity route that earns and buys the laptop before any boss/debug grants.
+- Final quote audit: accepted heat originally passed through status/Stealth/VPN scaling a second time at completion. Exact-heat assertion failed; extracted shared heat_gain(), snapshot the actual gain and firewall savings at acceptance, and apply that saved amount once. Covert late decryption work carries declared heat so higher firewall work protection remains useful.
+- Final verification: tools/check_local_work.sh --preview exited 0; LOCAL WORK TEST PASSED and LOCAL WORK PREVIEW PASSED. Exact heat, companion once-only multiplier, real combat result-screen reload, legacy save, and pointer/proximity opening checks pass.
+- Regression: tools/check_fun_pass.sh --preview exited 0; smoke, street cache, modern UI, gameplay renderer and modern UI preview all passed. git diff --check passed. Screenshots inspected and copied to docs/qa/local-work.
+- Independent review: two important findings fixed and regression-tested; map tracking, goal mutation notifications and unknown source fallback also completed. No deferred review findings.
+- Existing drowned-quarter, companion, player and smoke-test edits are byte-identical to the pre-work snapshot. Production changes are left uncommitted on codex/local-specialist-work to avoid combining overlapping user changes in a commit.
+- QA limits: desktop renderer/pointer tests, not physical-phone or full-campaign playthrough acceptance. Some automated shutdowns retain Godot ObjectDB/resource warnings, as the earlier suites did.

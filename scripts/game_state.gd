@@ -4,6 +4,8 @@ extends Node
 ## Single-player for now, but kept as one serializable blob of plain data so
 ## a future multiplayer server could own this state instead of the client.
 
+const Work = preload("res://scripts/work_system.gd")
+
 signal stats_changed
 signal toast(text: String, color: Color)
 signal prompt_changed(text: String)
@@ -45,10 +47,16 @@ const PERSISTED := [
 	"defeated_crew_bosses", "owned_pets", "active_pet", "solved_cryptograms",
 	"cafe_rig_rented", "cafe_hacked", "cafe_riot_beaten",
 	"r10t_finale_won", "game_beaten",
-	"music_vol", "sfx_vol",
+	"music_vol", "sfx_vol", "work_claims", "tracked_job", "purchase_goal", "goal_announced",
 ]
 
 # True until a save is loaded; lets the main scene pick intro vs "welcome back".
+var work_claims := {}
+var tracked_job := ""
+var purchase_goal := ""
+var goal_announced := false
+var work_battle := "" # transient; only a deliberately launched fight settles work
+
 var is_new_game := true
 
 var owned_gear: Array[String] = []
@@ -161,6 +169,7 @@ var _ui_locks := 0
 func _ready() -> void:
 	randomize()
 	_setup_input()
+	stats_changed.connect(func() -> void: Work.check_goal(self))
 	stats_changed.connect(_check_quests)
 	if ambient.is_empty():
 		_seed_ambient()
@@ -227,6 +236,11 @@ func load_game() -> bool:
 	for field in PERSISTED:
 		if parsed.has(field):
 			set(field, _coerce_loaded(field, parsed[field]))
+	work_battle = ""
+	# Old saves may be loaded after another run in the same process.
+	for field in ["work_claims", "tracked_job", "purchase_goal", "goal_announced"]:
+		if not parsed.has(field):
+			set(field, {} if field == "work_claims" else (false if field == "goal_announced" else ""))
 	_migrate_legacy_pet_upgrade()
 	_reset_trace()
 	if heat >= 100:
@@ -242,6 +256,11 @@ func load_game() -> bool:
 
 
 func new_game() -> void:
+	work_claims = {}
+	tracked_job = ""
+	purchase_goal = ""
+	goal_announced = false
+	work_battle = ""
 	_ui_locks = 0
 	touch_vector = Vector2.ZERO
 	cash = 15
@@ -372,6 +391,7 @@ func _migrate_legacy_pet_upgrade() -> void:
 
 func add_cash(amount: int) -> void:
 	cash = maxi(0, cash + amount)
+	Work.check_goal(self)
 	stats_changed.emit()
 
 
@@ -544,15 +564,16 @@ func _check_status() -> void:
 		notify("STATUS UP — you're now a %s!%s" % [rank.title, suffix], COL_GOOD)
 
 
-func add_heat(amount: int) -> void:
-	if amount > 0:
-		# Bigger fish draw more attention: each rank adds a heat surcharge.
-		var gain := 1.0 + 0.10 * status_index()
-		# Tradecraft cuts it back down.
-		var mult := 1.0 - 0.12 * skill("stealth")
-		if owned("vpn"):
-			mult *= 0.5
-		amount = maxi(1, ceili(amount * gain * mult))
+func heat_gain(amount: int) -> int:
+	if amount <= 0: return amount
+	var gain := 1.0 + 0.10 * status_index()
+	var mult := 1.0 - 0.12 * skill("stealth")
+	if owned("vpn"): mult *= 0.5
+	return maxi(1,ceili(amount * gain * mult))
+
+
+func add_heat(amount: int, already_scaled := false) -> void:
+	if not already_scaled: amount = heat_gain(amount)
 	heat = clampi(heat + amount, 0, 100)
 	stats_changed.emit()
 	if heat >= 100:
@@ -856,6 +877,9 @@ func owns_gear(id: String) -> bool:
 
 
 func buy_gear(id: String) -> bool:
+	if not GameData.GEAR.has(id) or GameData.GEAR[id].get("crew_drop", false):
+		notify("That trophy must be earned in combat.", COL_WARN)
+		return false
 	var g: Dictionary = GameData.GEAR[id]
 	if owns_gear(id):
 		notify("You already own that.", COL_WARN)
@@ -868,7 +892,8 @@ func buy_gear(id: String) -> bool:
 		return false
 	cash -= g.price
 	owned_gear.append(id)
-	equip_gear(id)  # auto-equip on purchase
+	stats_changed.emit()
+	save_game()
 	notify("Bought %s." % g.name, COL_GOOD)
 	return true
 
@@ -878,9 +903,10 @@ func equip_gear(id: String) -> void:
 		return
 	gear[GameData.GEAR[id].slot] = id
 	stats_changed.emit()
+	save_game()
 
 
-func grant_gear(id: String, auto_equip := true) -> bool:
+func grant_gear(id: String, auto_equip := false) -> bool:
 	if not GameData.GEAR.has(id):
 		return false
 	var fresh := not owns_gear(id)
@@ -1324,6 +1350,9 @@ func accept_job(id: String) -> bool:
 # Do one step of a field gig. Most gigs require multiple stops; only the final
 # step resolves pay/risk and clears the job.
 func complete_job(id: String) -> bool:
+	var local := Work.find(self, id)
+	if not local.is_empty():
+		return Work.start(self, id, int(local.step))
 	_normalize_active_jobs()
 	var idx := _active_job_index(id)
 	if idx < 0:
@@ -1398,6 +1427,8 @@ func _normalize_active_jobs() -> void:
 
 
 func _normalize_job_instance(job: Dictionary) -> Dictionary:
+	if job.get("local_work", false):
+		return job
 	var template: String = job.get("template", "")
 	if template == "" and GameData.JOBS.has(job.get("uid", "")):
 		template = job.uid
@@ -1493,7 +1524,7 @@ func _maybe_nudge_laptop() -> void:
 	var price: int = GameData.UPGRADES["used_laptop"]["price"]
 	if cash >= price:
 		_laptop_nudged = true
-		notify("That's enough for the used laptop — grab it at the PAWN SHOP.", COL_GOOD)
+		notify("That's enough for the used laptop — visit the PATCH REPAIR KIOSK in the PLAZA.", COL_GOOD)
 
 
 func _seeded_shuffle(arr: Array, rng: RandomNumberGenerator) -> void:

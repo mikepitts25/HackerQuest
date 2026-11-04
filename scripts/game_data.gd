@@ -533,17 +533,29 @@ const CONSUMABLES := {
 # out on a win. `flee: false` forbids JACK OUT (bosses, trace units). `tier`
 # gates which enemies appear in random street encounters.
 const ENEMIES := {
+	"contract_sentry": {
+		"name": "Contract Sentry", "integrity": 42, "attack": 8, "defense": 5, "crit": 0.05,
+		"moveset": ["exploit", "exploit", "firewall"], "loot": {"cash": [0,0]},
+		"flee": true, "tier": 99, "intro": "A contract sentry locks down the data case. The client's fee covers this fight."},
+	"contract_ice": {
+		"name": "Archive ICE", "integrity": 60, "attack": 12, "defense": 8, "crit": 0.08,
+		"moveset": ["exploit", "ddos", "firewall"], "loot": {"cash": [0,0]},
+		"flee": true, "tier": 99, "intro": "Archive ICE wakes as you reach for the case. Finish the contract to collect."},
+	"contract_guardian": {
+		"name": "Deep Recovery Guardian", "integrity": 80, "attack": 16, "defense": 10, "crit": 0.10,
+		"moveset": ["exploit", "trace_lock", "ddos", "firewall"], "loot": {"cash": [0,0]},
+		"flee": true, "tier": 99, "intro": "A recovery guardian rises from the flooded archive. The payment is waiting on delivery."},
 	"script_kid": {
 		"name": "Script Kiddie", "integrity": 18, "attack": 3, "defense": 1, "crit": 0.0,
 		"moveset": ["exploit", "exploit", "firewall"],
-		"loot": {"cash": [20, 45], "xp": 15, "rep": 1},
+		"loot": {"cash": [35, 55], "xp": 15, "rep": 1},
 		"flee": true, "tier": 0,
 		"intro": "Some kid in a hoodie squares up, cracking their knuckles.",
 		"taunts": ["u even got a 0day, bro?", "ez.", "skill issue lol"]},
 	"street_hacker": {
 		"name": "Corner Cracker", "integrity": 34, "attack": 6, "defense": 4, "crit": 0.05,
 		"moveset": ["exploit", "exploit", "ddos", "firewall"],
-		"loot": {"cash": [60, 120], "xp": 35, "rep": 2},
+		"loot": {"cash": [100, 160], "xp": 35, "rep": 2},
 		"flee": true, "tier": 1,
 		"intro": "A wiry runner steps from a doorway, deck already humming.",
 		"taunts": ["wrong corner, friend.", "pay the toll.", "nothing personal."]},

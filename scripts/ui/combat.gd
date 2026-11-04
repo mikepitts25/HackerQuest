@@ -37,6 +37,7 @@ var _boss_flash: ColorRect
 # District track stashed while combat music plays, restored when the fight ends.
 var _prev_music := ""
 var _combat_audio := false
+var _outcome_applied := false
 
 
 func _ready() -> void:
@@ -47,6 +48,7 @@ func _ready() -> void:
 
 # Begin a fight against the given GameData.ENEMIES id.
 func start(enemy_id: String) -> void:
+	_outcome_applied = false
 	_session = CombatSessionScript.new()
 	_session.init(GameState.combat_stats(), enemy_id)
 	_enemy_name.text = "▓ %s" % _session.enemy.name
@@ -442,6 +444,7 @@ func _post_move() -> void:
 
 
 func _on_continue() -> void:
+	if _session == null or get_meta("animating_out",false): return
 	# A trace fight resolves its trace state here, after the panel closes, so the
 	# bust dialog (on a loss) doesn't stack on top of combat.
 	var was_tracker: bool = _session.enemy_id == "tracker_unit"
@@ -475,6 +478,13 @@ func _on_continue() -> void:
 # --- outcome / rewards --------------------------------------------------------
 
 func _apply_outcome() -> void:
+	if _outcome_applied: return
+	_outcome_applied = true
+	var work = preload("res://scripts/work_system.gd")
+	var job: Dictionary = work.find(GameState,GameState.work_battle)
+	work.finish_combat(GameState,_session.enemy_id,_session.outcome)
+	if not job.is_empty() and _session.outcome == _session.WIN:
+		_session._log("> contract complete — agreed $%d paid." % int(job.cash))
 	match _session.outcome:
 		_session.WIN:
 			_award_loot()
@@ -485,6 +495,8 @@ func _apply_outcome() -> void:
 				_apply_loss()
 		_session.FLED:
 			_session._log("> you slipped the net. no reward, no scars.")
+
+	GameState.save_game()
 
 
 func _award_loot() -> void:

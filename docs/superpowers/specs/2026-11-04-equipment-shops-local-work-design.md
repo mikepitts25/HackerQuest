@@ -1,8 +1,9 @@
 # Equipment, shops, and local work
 
 Date: 2026-11-04
-Status: Proposed for user approval; implementation has not started. Independent
-builder review found no important unanswered planning questions.
+Status: Approved by the user and implemented. Independent builder review found
+no important unanswered planning questions. Implementation evidence is in
+`docs/qa/local-work/`.
 
 ## Intent and decisions
 
@@ -236,3 +237,13 @@ Never reset or overwrite the user's real save. Required evidence:
 Automated and desktop-render evidence does not establish physical-phone touch,
 accessibility, performance, or final perceptual/economy acceptance. Report those
 limits explicitly in the implementation handoff.
+
+## Implementation finding: starter shopping access
+
+The existing Plaza boss gates forward street travel, including the route to
+Market. To keep the approved first-purchase loop usable without weakening boss
+progression, the Plaza repair specialist has a limited pawn consignment shelf:
+used laptop, Script Deck, Foam Firewall, Reflex Booster, Logic Bomb, and Patch
+Kit. The Market remains the full shop. This is a builder decision prompted by
+live progression inspection; the renderer test must earn and buy the laptop
+from a fresh run with no defeated bosses or debug grants.

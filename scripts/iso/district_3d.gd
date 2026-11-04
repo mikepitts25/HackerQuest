@@ -113,6 +113,7 @@ func build(p_main: Node) -> void:
 		_spawn_crowd(_crowd_size())
 		_spawn_hoverboarders(_hoverboarder_count())
 	_spawn_traffic()
+	_render_work_sources()
 	_render_job_markers()
 	_render_cryptogram_clues()
 	_spawn_street_encounter()
@@ -839,12 +840,12 @@ func _render_job_markers() -> void:
 		var pos_data: Array = job.get("pos", [area_size.x * 0.5, area_size.y * 0.6])
 		var pos := Vector2(float(pos_data[0]), float(pos_data[1]))
 		_job_marker(pos, arch.color, "%s\n%d/%d" % [job.name, job.step, job.steps_total],
-				job.get("prompt", arch.prompt), job.uid)
+				job.get("prompt", arch.prompt), job.uid, int(job.step), job.get("local_work", false))
 
 
 # A glowing ground disc + light beam + floating label, interactable to do the
 # job. Frees itself once the gig is completed.
-func _job_marker(pos: Vector2, color: Color, label_text: String, prompt: String, jid: String) -> void:
+func _job_marker(pos: Vector2, color: Color, label_text: String, prompt: String, jid: String, step := 1, local_work := false) -> void:
 	var holder := Node3D.new()
 	holder.position = Vector3(pos.x, 0, pos.y)
 	holder.add_to_group("job_marker")
@@ -898,7 +899,12 @@ func _job_marker(pos: Vector2, color: Color, label_text: String, prompt: String,
 
 	# Completing emits jobs_changed → main refreshes markers (frees this one).
 	_interact(holder, prompt, Vector3(1.6, 1.6, 1.6),
-			func() -> void: GameState.complete_job(jid))
+			func() -> void:
+				if local_work:
+					var job: Dictionary = preload("res://scripts/work_system.gd").find(GameState,jid)
+					if not job.is_empty() and int(job.step)==step:
+						main.hud.work_ui.show_stage(jid)
+				else: GameState.complete_job(jid))
 
 
 # A scavengable e-waste pile. Dim state derives from GameState so it stays
@@ -1561,3 +1567,18 @@ func _search_trash(id: String, pile: Area3D) -> void:
 		msg += "   ✦ RARE: %s ($%d)!" % [GameData.ITEMS[rare_id]["name"], GameData.ITEMS[rare_id]["price"]]
 	GameState.notify(msg, GameState.COL_GOOD)
 	pile.set_dim(true)
+
+
+func _render_work_sources() -> void:
+	var catalog = preload("res://scripts/work_catalog.gd")
+	for id in catalog.sources():
+		var source: Dictionary = catalog.sources()[id]
+		if source.district != str(main.get("current_district_id")): continue
+		# Existing board geometry and interactions serve these two sources.
+		if id in ["plaza_board", "corp_board"]: continue
+		var pos := Vector2(source.pos[0],source.pos[1])
+		var prop := _prop(JOB_BOARD_SCENE,pos)
+		prop.add_to_group("work_source")
+		prop.set_meta("source_id",id)
+		_sign(source.name + "\n" + source.category,pos,2.0,23)
+		_interact(prop,"Work · " + source.name,Vector3(1.4,1.5,0.5),Callable(main,"show_work_source").bind(id))

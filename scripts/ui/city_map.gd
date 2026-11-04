@@ -24,6 +24,13 @@ const COL_DIM := Color(1, 1, 1, 0.45)
 const COL_YOU := Color(0.49, 0.91, 0.53)
 
 
+func is_tracked_destination(district_id: String) -> bool:
+	for job in GameState.active_jobs:
+		if job.get("uid", "")==GameState.tracked_job and job.get("district", "")==district_id:
+			return true
+	return false
+
+
 func _process(delta: float) -> void:
 	if is_visible_in_tree():
 		_t += delta
@@ -125,6 +132,9 @@ func _draw() -> void:
 			var gr := 17.0 + sin(_t * 4.0) * 2.0
 			draw_arc(p, gr, 0, TAU, 32, Color(1.0, 0.82, 0.25), 2.5)
 			draw_string(font, p + Vector2(9, -9), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1.0, 0.82, 0.25))
+		if unlocked and is_tracked_destination(id):
+			draw_arc(p, 23.0, 0, TAU, 32, COL_YOU, 3.0)
+			draw_string(font, p + Vector2(-110, -42), "TRACKED JOB", HORIZONTAL_ALIGNMENT_CENTER, 220, 12, COL_YOU)
 		draw_string(font, p + Vector2(-110, 32), dname,
 				HORIZONTAL_ALIGNMENT_CENTER, 220, 15,
 				COL_TEXT if unlocked else COL_DIM)

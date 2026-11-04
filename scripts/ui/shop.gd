@@ -2,6 +2,8 @@ extends Panel
 ## Pawn shop UI. Lists upgrades from GameData.UPGRADES with prerequisite and
 ## cash checks; purchases go through GameState.buy_upgrade.
 
+const Work = preload("res://scripts/work_system.gd")
+
 var _rows_box: VBoxContainer
 var _cash_label: Label
 var _cur: VBoxContainer        # the section currently being filled
@@ -86,6 +88,10 @@ func _refresh() -> void:
 	if not visible:
 		return
 	_cash_label.text = "Your cash: $%d" % GameState.cash
+	var goal: Dictionary = Work.goal_info(GameState)
+	if not goal.is_empty():
+		_cash_label.text += "\nSaving for %s · %s" % [goal.name, "ready to buy" if goal.shortfall==0 else "$%d to go" % goal.shortfall]
+	_cash_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	for child in _rows_box.get_children():
 		_rows_box.remove_child(child)
 		child.queue_free()
@@ -108,25 +114,34 @@ func _refresh() -> void:
 			ubtn = "$%d" % u.price
 			udis = GameState.cash < u.price
 			uop = func() -> void: GameState.buy_upgrade(id)
-		_shop_row(u.name, ud, ubtn, udis, uop, "cash")
+		if not GameState.owned(id): ud += "\n$%d more needed." % maxi(0,int(u.price)-GameState.cash)
+		_shop_row(u.name, ud, ubtn, udis, uop, "cash", id if not GameState.owned(id) else "")
 
-	_begin_section("GEAR — rig · firewall · implant", GameData.GEAR.size())
-	for gid in GameData.GEAR:
+	for slot in GameData.GEAR_SLOTS:
+		var ids: Array = GameData.GEAR.keys().filter(func(id): return GameData.GEAR[id].slot==slot and not GameData.GEAR[id].get("crew_drop",false))
+		_begin_section(slot.to_upper() + "S",ids.size())
+		for gid in ids:
+			var g: Dictionary = GameData.GEAR[gid]
+			var desc: String = Work.equipment_text(gid,GameState)
+			var owned: bool = GameState.owns_gear(gid)
+			var equipped: bool = GameState.gear.get(slot,"")==gid
+			var locked: bool = GameState.status_index()<int(g.get("status_req",0))
+			var button_text: String = ("EQUIPPED" if equipped else "EQUIP") if owned else ("LOCKED" if locked else "$%d" % g.price)
+			if locked and not owned: desc += "\nNeeds %s status." % GameData.STATUS_RANKS[g.status_req].title
+			if not owned: desc += "\n$%d more needed." % maxi(0,int(g.price)-GameState.cash)
+			_shop_row(g.name,desc,button_text,equipped or (not owned and (locked or GameState.cash<int(g.price))),_on_gear_pressed.bind(gid),"cash",gid if not owned else "")
+	var trophies: Array = GameData.GEAR.keys().filter(func(id): return GameData.GEAR[id].get("crew_drop",false))
+	_begin_section("EARNED TROPHIES",trophies.size())
+	for gid in trophies:
 		var g: Dictionary = GameData.GEAR[gid]
-		var stat := ""
-		if g.has("cyber"): stat = "ATK +%d" % g.cyber
-		elif g.has("defense"): stat = "DEF +%d" % g.defense
-		else: stat = "INT +%d · CRIT +%d%%" % [g.get("integrity", 0), int(g.get("crit", 0) * 100)]
-		var gd: String = "%s  [%s]" % [g.desc, stat]
-		var gbtn: String = "$%d" % g.price
-		var gdis: bool = GameState.cash < g.price
-		if GameState.owns_gear(gid):
-			gbtn = "EQUIPPED" if GameState.gear.get(g.slot, "") == gid else "EQUIP"
-			gdis = false
-		elif GameState.status_index() < int(g.get("status_req", 0)):
-			gbtn = "LOCKED"; gdis = true
-			gd += "  (needs %s)" % GameData.STATUS_RANKS[g.status_req]["title"]
-		_shop_row(g.name, gd, gbtn, gdis, _on_gear_pressed.bind(gid))
+		var origin := "Defeat its crew boss."
+		for enemy in GameData.ENEMIES.values():
+			if enemy.get("loot",{}).get("gear","")==gid:
+				origin = "Earned by defeating %s." % enemy.name
+				break
+		var owned: bool = GameState.owns_gear(gid)
+		var equipped: bool = GameState.gear.get(g.slot,"")==gid
+		_shop_row(g.name,origin + "\n" + Work.equipment_text(gid,GameState),"EQUIPPED" if equipped else ("EQUIP" if owned else "EARN IN CITY"),not owned or equipped,_on_gear_pressed.bind(gid))
 
 	_begin_section("CONSUMABLES — keep going", GameData.CONSUMABLES.size())
 	for cid in GameData.CONSUMABLES:
@@ -181,7 +196,7 @@ func _on_gear_pressed(id: String) -> void:
 	_refresh()
 
 
-func _shop_row(name_text: String, desc_text: String, btn_text: String, disabled: bool, on_press: Callable, sfx_name := "click") -> void:
+func _shop_row(name_text: String, desc_text: String, btn_text: String, disabled: bool, on_press: Callable, sfx_name := "click", goal_id := "") -> void:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(1, 1, 1, 0.05)
@@ -199,6 +214,7 @@ func _shop_row(name_text: String, desc_text: String, btn_text: String, disabled:
 	row.add_child(info)
 	var name_label := Label.new()
 	name_label.text = name_text
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.add_theme_font_size_override("font_size", 18)
 	info.add_child(name_label)
 	if desc_text != "":
@@ -218,7 +234,18 @@ func _shop_row(name_text: String, desc_text: String, btn_text: String, disabled:
 		btn.pressed.connect(func() -> void:
 			Audio.sfx(sfx_name)
 			on_press.call())
-	row.add_child(btn)
+	var actions := VBoxContainer.new()
+	row.add_child(actions)
+	actions.add_child(btn)
+	if goal_id != "":
+		var goal := Button.new()
+		goal.text = "CLEAR GOAL" if GameState.purchase_goal==goal_id else "SAVE FOR THIS"
+		goal.custom_minimum_size = Vector2(150,48)
+		goal.focus_mode = Control.FOCUS_NONE
+		goal.pressed.connect(func() -> void:
+			Work.set_goal(GameState,"" if GameState.purchase_goal==goal_id else goal_id)
+			_refresh())
+		actions.add_child(goal)
 
 
 # A tappable, collapsible category header. Rows added after it (via _shop_row)

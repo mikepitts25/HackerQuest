@@ -19,6 +19,8 @@ func _build() -> void:
 	_sign("CORP ROW", Vector2(8, 2.5), 2.6, 72)
 
 	var board := _prop(JOB_BOARD_SCENE, Vector2(12, 24))
+	board.add_to_group("work_source")
+	board.set_meta("source_id","corp_board")
 	_interact(board, "Corp gigs", Vector3(1.5, 1.5, 0.4),
 			func() -> void: main.show_jobs("corp"))
 	_collider(Vector2(12, 24), Vector3(1.5, 1.5, 0.3))
